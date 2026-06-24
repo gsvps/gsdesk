@@ -59,7 +59,7 @@ export async function testBackendConnection(apiBase: string): Promise<{ ok: bool
     const res = await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(12000) });
     const body = (await res.json()) as {
       success?: boolean;
-      data?: { status?: string; backend?: string; app?: string; db_ready?: boolean };
+      data?: { status?: string; backend?: string; app?: string; db_ready?: boolean; db_error?: string };
       error?: { message?: string };
     };
     if (!res.ok || body.success === false) {
@@ -69,9 +69,12 @@ export async function testBackendConnection(apiBase: string): Promise<{ ok: bool
     const app = body.data?.app ?? 'CloudDesk';
     const dbReady = body.data?.db_ready;
     if (dbReady === false) {
+      const detail = body.data?.db_error?.trim();
       return {
         ok: false,
-        message: 'Worker 已连通，但 D1 数据库未初始化。请在项目根目录运行: npm run db:migrate',
+        message: detail
+          ? `Worker 已连通，但 D1 初始化失败：${detail}。请确认 Worker 已绑定正确的 D1 数据库后重新部署，或在项目根目录运行 npm run db:migrate`
+          : 'Worker 已连通，但 D1 数据库未初始化。请重新部署最新 Worker（会自动建表），或在项目根目录运行 npm run db:migrate',
         backend: kind,
       };
     }
