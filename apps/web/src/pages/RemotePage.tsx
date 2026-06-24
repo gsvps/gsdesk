@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import FileTransferPanel from '../components/FileTransferPanel';
+import FileTransferStatusBar from '../components/FileTransferStatusBar';
 import MobileKeyboard from '../components/MobileKeyboard';
 import ReconnectDialog from '../components/ReconnectDialog';
 import { apiFetch, prepareSessionReconnect, type SessionCreateResult } from '../lib/api';
@@ -16,7 +17,8 @@ import {
   QUALITY_OPTIONS,
   type QualityPreset,
 } from '../lib/remote-settings';
-import { downloadSessionFile, sendFileToAgent } from '../lib/session-files';
+import type { FileTransferUiState } from '../lib/file-transfer-ui';
+import { downloadSessionFile, progressFromLoaded, sendFileToAgent } from '../lib/session-files';
 import { RemoteSession, type ScreenInfoMessage } from '../lib/webrtc';
 
 type FitMode = 'contain' | 'cover';
@@ -71,7 +73,7 @@ export default function RemotePage() {
   });
   const [keyboardEnabled, setKeyboardEnabled] = useState(false);
   const [showFilePanel, setShowFilePanel] = useState(false);
-  const [fileStatus, setFileStatus] = useState('');
+  const [fileTransfer, setFileTransfer] = useState<FileTransferUiState | null>(null);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [isTouch] = useState(() => isTouchDevice());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -316,23 +318,43 @@ export default function RemotePage() {
         },
         onFileReady: (msg) => {
           if (aborted || !sessionId) return;
-          setFileStatus(`远程文件就绪：${msg.filename}`);
-          void downloadSessionFile(sessionId, msg.file_id, msg.filename).catch((err) => {
+          setFileTransfer({ message: `正在下载 ${msg.filename}…`, progress: 0 });
+          void downloadSessionFile(sessionId, msg.file_id, msg.filename, (loaded, total) => {
             if (!aborted) {
-              setFileStatus(err instanceof Error ? err.message : '下载失败');
+              setFileTransfer({
+                message: `正在下载 ${msg.filename}…`,
+                progress: progressFromLoaded(loaded, total),
+              });
             }
-          });
+          })
+            .then(() => {
+              if (!aborted) {
+                setFileTransfer({ message: `已下载：${msg.filename}`, progress: 100 });
+              }
+            })
+            .catch((err) => {
+              if (!aborted) {
+                setFileTransfer({
+                  message: err instanceof Error ? err.message : '下载失败',
+                  progress: 100,
+                });
+              }
+            });
         },
         onFileAgentDone: (msg) => {
-          if (!aborted) setFileStatus(`已保存到远程：${msg.path ?? msg.filename}`);
+          if (!aborted) {
+            setFileTransfer({ message: `已保存到远程：${msg.path ?? msg.filename}`, progress: 100 });
+          }
         },
         onFileError: (msg) => {
-          if (!aborted) setFileStatus(`文件传输失败：${msg.message}`);
+          if (!aborted) {
+            setFileTransfer({ message: `文件传输失败：${msg.message}`, progress: 100 });
+          }
         },
         onClipboard: (msg) => {
           if (aborted) return;
           void applyRemoteClipboard(msg.content, clipboardSyncRef.current).then((ok) => {
-            if (ok) setFileStatus('剪贴板已从远程同步');
+            if (ok) setFileTransfer({ message: '剪贴板已从远程同步', progress: 100 });
           });
         },
       });
@@ -404,11 +426,24 @@ export default function RemotePage() {
 
     for (const file of files) {
       try {
-        setFileStatus(`正在上传 ${file.name}...`);
-        await sendFileToAgent(sessionId, file, (payload) => sessionRef.current?.sendControl(payload) ?? false);
-        setFileStatus(`已发送到远程：${file.name}`);
+        setFileTransfer({ message: `正在上传 ${file.name}…`, progress: 0 });
+        await sendFileToAgent(
+          sessionId,
+          file,
+          (payload) => sessionRef.current?.sendControl(payload) ?? false,
+          (loaded, total) => {
+            setFileTransfer({
+              message: `正在上传 ${file.name}…`,
+              progress: progressFromLoaded(loaded, total),
+            });
+          }
+        );
+        setFileTransfer({ message: `已发送到远程：${file.name}`, progress: 100 });
       } catch (err) {
-        setFileStatus(err instanceof Error ? err.message : '上传失败');
+        setFileTransfer({
+          message: err instanceof Error ? err.message : '上传失败',
+          progress: 100,
+        });
         break;
       }
     }
@@ -672,8 +707,8 @@ export default function RemotePage() {
             {showFilePanel && sessionId && (
               <FileTransferPanel
                 sessionId={sessionId}
-                status={fileStatus}
-                onStatusChange={setFileStatus}
+                transfer={fileTransfer}
+                onTransferUpdate={setFileTransfer}
                 onSendControl={(payload) => sessionRef.current?.sendControl(payload) ?? false}
                 onClose={() => setShowFilePanel(false)}
               />
@@ -704,10 +739,8 @@ export default function RemotePage() {
           </button>
         </div>
       </div>
-      {fileStatus && (
-        <div className="shrink-0 truncate border-b border-slate-800 bg-slate-950 px-3 py-1 text-center text-[10px] text-slate-400 sm:text-xs">
-          {fileStatus}
-        </div>
+      {fileTransfer?.message && (
+        <FileTransferStatusBar state={fileTransfer} onDismiss={() => setFileTransfer(null)} />
       )}
       {error && !status.startsWith('已连接') ? (
         <div className="flex flex-1 items-center justify-center text-red-400">{error}</div>

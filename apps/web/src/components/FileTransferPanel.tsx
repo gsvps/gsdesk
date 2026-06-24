@@ -1,33 +1,64 @@
-import { useRef, useState } from 'react';
-import { sendFileToAgent } from '../lib/session-files';
+import { useEffect, useRef, useState } from 'react';
+import type { FileTransferUiState } from '../lib/file-transfer-ui';
+import { progressFromLoaded, sendFileToAgent } from '../lib/session-files';
+import { FileTransferProgressBar } from './FileTransferStatusBar';
 
 interface FileTransferPanelProps {
   sessionId: string;
-  status: string;
-  onStatusChange: (status: string) => void;
+  transfer: FileTransferUiState | null;
+  onTransferUpdate: (state: FileTransferUiState | null) => void;
   onSendControl: (payload: Record<string, unknown>) => boolean;
   onClose: () => void;
 }
 
+const REMOTE_REQUEST_TIMEOUT_MS = 120_000;
+
 export default function FileTransferPanel({
   sessionId,
-  status,
-  onStatusChange,
+  transfer,
+  onTransferUpdate,
   onSendControl,
   onClose,
 }: FileTransferPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const requestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [remotePath, setRemotePath] = useState('C:\\Users\\Public\\');
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    return () => {
+      if (requestTimerRef.current) clearTimeout(requestTimerRef.current);
+    };
+  }, []);
+
+  function clearRequestTimer() {
+    if (requestTimerRef.current) {
+      clearTimeout(requestTimerRef.current);
+      requestTimerRef.current = null;
+    }
+  }
+
   async function uploadToRemote(file: File) {
     setBusy(true);
-    onStatusChange(`正在上传 ${file.name}...`);
+    onTransferUpdate({ message: `正在上传 ${file.name}…`, progress: 0 });
     try {
-      const result = await sendFileToAgent(sessionId, file, onSendControl);
-      onStatusChange(`已发送到远程：${result.filename}`);
+      await sendFileToAgent(
+        sessionId,
+        file,
+        onSendControl,
+        (loaded, total) => {
+          onTransferUpdate({
+            message: `正在上传 ${file.name}…`,
+            progress: progressFromLoaded(loaded, total),
+          });
+        }
+      );
+      onTransferUpdate({ message: `已发送到远程：${file.name}`, progress: 100 });
     } catch (err) {
-      onStatusChange(err instanceof Error ? err.message : '上传失败');
+      onTransferUpdate({
+        message: err instanceof Error ? err.message : '上传失败',
+        progress: 100,
+      });
     } finally {
       setBusy(false);
     }
@@ -36,15 +67,33 @@ export default function FileTransferPanel({
   function requestFromRemote() {
     const path = remotePath.trim();
     if (!path) {
-      onStatusChange('请输入远程文件路径');
+      onTransferUpdate({ message: '请输入远程文件路径', progress: null });
       return;
     }
-    onStatusChange('正在请求远程文件...');
+    clearRequestTimer();
+    onTransferUpdate({ message: '正在请求远程文件…', progress: null });
     const sent = onSendControl({ type: 'file_from_agent', path });
     if (!sent) {
-      onStatusChange('连接未就绪，请确认远程桌面已连接后再试');
+      onTransferUpdate({
+        message: '连接未就绪，请确认远程桌面已连接后再试',
+        progress: 100,
+      });
+      return;
     }
+    requestTimerRef.current = setTimeout(() => {
+      onTransferUpdate({
+        message: '请求远程文件超时，请检查路径与 Agent 连接',
+        progress: 100,
+      });
+    }, REMOTE_REQUEST_TIMEOUT_MS);
   }
+
+  // 外部状态变化（收到 file_ready 等）时清除请求超时
+  useEffect(() => {
+    if (transfer?.message && !transfer.message.includes('正在请求远程文件')) {
+      clearRequestTimer();
+    }
+  }, [transfer?.message]);
 
   return (
     <div
@@ -100,7 +149,12 @@ export default function FileTransferPanel({
           </button>
         </div>
 
-        {status && <p className="text-slate-400">{status}</p>}
+        {transfer?.message && (
+          <div className="rounded-md border border-slate-800 bg-slate-950/80 px-2 py-1.5">
+            <p className="text-slate-300">{transfer.message}</p>
+            <FileTransferProgressBar progress={transfer.progress} compact />
+          </div>
+        )}
         <p className="text-slate-500">也可将文件拖放到远程画面上传</p>
       </div>
     </div>
