@@ -4,6 +4,7 @@ import FileTransferPanel from '../components/FileTransferPanel';
 import FileTransferStatusBar from '../components/FileTransferStatusBar';
 import MobileKeyboard from '../components/MobileKeyboard';
 import ReconnectDialog from '../components/ReconnectDialog';
+import TouchCursorOverlay from '../components/TouchCursorOverlay';
 import { apiFetch, prepareSessionReconnect, type SessionCreateResult } from '../lib/api';
 import {
   applyRemoteClipboard,
@@ -60,6 +61,7 @@ export default function RemotePage() {
   const userDisconnectRef = useRef(false);
   const reconnectBusyRef = useRef(false);
   const reconnectPromptRef = useRef<ReconnectPromptState | null>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState('正在建立连接...');
   const [error, setError] = useState('');
   const [useVideoTrack, setUseVideoTrack] = useState(false);
@@ -80,6 +82,8 @@ export default function RemotePage() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [reconnectPrompt, setReconnectPrompt] = useState<ReconnectPromptState | null>(null);
   const [reconnectDismissed, setReconnectDismissed] = useState(false);
+  const [touchCursor, setTouchCursor] = useState<{ x: number; y: number } | null>(null);
+  const [touchPressing, setTouchPressing] = useState(false);
 
   useEffect(() => {
     reconnectPromptRef.current = reconnectPrompt;
@@ -492,6 +496,17 @@ export default function RemotePage() {
     }
   }
 
+  function updateTouchCursor(clientX: number, clientY: number) {
+    if (!isTouch) return;
+    const surface = surfaceRef.current;
+    if (!surface) return;
+    const rect = surface.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    if (x < 0 || y < 0 || x > rect.width || y > rect.height) return;
+    setTouchCursor({ x, y });
+  }
+
   function mapCoordsFromClient(clientX: number, clientY: number) {
     const canvas = canvasRef.current;
     const video = videoRef.current;
@@ -539,6 +554,7 @@ export default function RemotePage() {
   }
 
   function queueMouseMove(clientX: number, clientY: number) {
+    updateTouchCursor(clientX, clientY);
     const coords = mapCoordsFromClient(clientX, clientY);
     if (!coords) return;
     pendingMoveRef.current = coords;
@@ -555,6 +571,7 @@ export default function RemotePage() {
 
     function onPointerUp() {
       pointerActiveRef.current = false;
+      setTouchPressing(false);
     }
 
     window.addEventListener('pointermove', onPointerMove);
@@ -574,6 +591,8 @@ export default function RemotePage() {
 
   function sendMouseDown(e: React.PointerEvent<HTMLElement>) {
     pointerActiveRef.current = true;
+    setTouchPressing(true);
+    updateTouchCursor(e.clientX, e.clientY);
     e.currentTarget.setPointerCapture(e.pointerId);
     const coords = mapCoordsFromClient(e.clientX, e.clientY);
     if (!coords) return;
@@ -591,6 +610,7 @@ export default function RemotePage() {
 
   function sendMouseUp(e: React.PointerEvent<HTMLElement>) {
     pointerActiveRef.current = false;
+    setTouchPressing(false);
     const coords = mapCoordsFromClient(e.clientX, e.clientY);
     if (!coords) return;
     const button = e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left';
@@ -746,7 +766,8 @@ export default function RemotePage() {
         <div className="flex flex-1 items-center justify-center text-red-400">{error}</div>
       ) : (
         <div
-          className="relative min-h-0 flex-1 overflow-hidden bg-black"
+          ref={surfaceRef}
+          className="relative min-h-0 flex-1 overflow-hidden bg-black touch-none"
           {...dropHandlers}
         >
           {isDraggingFiles && (
@@ -758,7 +779,7 @@ export default function RemotePage() {
           )}
           <video
             ref={videoRef}
-            className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'block cursor-default' : 'hidden'}`}
+            className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'block cursor-none' : 'hidden'}`}
             autoPlay
             playsInline
             muted
@@ -766,9 +787,12 @@ export default function RemotePage() {
           />
           <canvas
             ref={canvasRef}
-            className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'hidden' : 'block cursor-default'}`}
+            className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'hidden' : 'block cursor-none'}`}
             {...(!useVideoTrack ? pointerHandlers : {})}
           />
+          {isTouch && isConnected && (
+            <TouchCursorOverlay position={touchCursor} pressing={touchPressing} />
+          )}
           {reconnectPrompt?.open && (
             <ReconnectDialog
               secondsLeft={reconnectPrompt.secondsLeft}
