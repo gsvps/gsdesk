@@ -120,11 +120,6 @@ func RunInstallWithOptions(req InstallRequest, onProgress ProgressFunc) Result {
 		return Result{OK: false, Error: err.Error()}
 	}
 
-	report(onProgress, "正在检查 WebView2 运行库…", 50)
-	if err := ensureWebView2Runtime(filepath.Join(targetDir, "packages"), onProgress); err != nil {
-		return Result{OK: false, Error: err.Error()}
-	}
-
 	if req.CreateDesktopShortcut {
 		report(onProgress, "正在创建桌面快捷方式…", 90)
 		if err := createDesktopShortcut(destExe, targetDir); err != nil {

@@ -41,19 +41,6 @@ func main() {
 		return
 	}
 
-	if config.NeedsInstallSetup() {
-		if err := appui.RunInstaller(cfg, func(c *config.Config) (appui.AgentView, appui.SaveFunc, error) {
-			a, err := agent.New(c)
-			if err != nil {
-				return nil, nil, err
-			}
-			return a, a.ApplyConfig, nil
-		}); err != nil {
-			fatalStartup("安装向导启动失败: " + err.Error() + "\n\n请查看 logs/agent.log")
-		}
-		return
-	}
-
 	if *settingsFlag {
 		if err := appui.RunClientWindow(cfg, func(next *config.Config) error {
 			next.Settings = next.Settings.Normalized()

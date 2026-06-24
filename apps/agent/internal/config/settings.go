@@ -70,9 +70,10 @@ func DefaultAgentSettings() AgentSettings {
 	enabled := true
 	agentOn := true
 	otpIdle := 5
-	closeTray := true
+	closeTray := false
 	return AgentSettings{
-		DefaultQuality:          "medium",
+		DefaultQuality:          "ultra",
+		AutoAccept:              true,
 		ClipboardSync:           &enabled,
 		AgentEnabled:            &agentOn,
 		OTPIdleRefreshMinutes:   &otpIdle,
@@ -83,7 +84,7 @@ func DefaultAgentSettings() AgentSettings {
 func (s AgentSettings) Normalized() AgentSettings {
 	out := s
 	if out.DefaultQuality == "" {
-		out.DefaultQuality = "medium"
+		out.DefaultQuality = "ultra"
 	}
 	if out.ClipboardSync == nil {
 		enabled := true
@@ -98,7 +99,7 @@ func (s AgentSettings) Normalized() AgentSettings {
 		out.OTPIdleRefreshMinutes = &minutes
 	}
 	if out.CloseToTray == nil {
-		closeTray := true
+		closeTray := false
 		out.CloseToTray = &closeTray
 	}
 	out.DownloadDir = strings.TrimSpace(out.DownloadDir)

@@ -1,4 +1,5 @@
 import { applyBackendToRuntime, loadBackendConfig } from './backend-config';
+import { loadPreferredApiBase, useBrowserLocalPrefs } from './browser-prefs';
 
 export type ClientMode = 'browser' | 'desktop';
 
@@ -35,9 +36,12 @@ export async function initRuntimeConfig(): Promise<void> {
     if (typeof window.getRuntimeConfig === 'function') {
       const raw = await window.getRuntimeConfig();
       const parsed = JSON.parse(typeof raw === 'string' ? raw : String(raw)) as RuntimeConfig;
+      const browserBase = useBrowserLocalPrefs()
+        ? loadPreferredApiBase()
+        : applyBackendToRuntime(loadBackendConfig());
       config = {
         mode: parsed.mode ?? 'desktop',
-        apiBase: parsed.apiBase ?? '',
+        apiBase: browserBase || (parsed.apiBase ?? '').replace(/\/$/, ''),
         deviceId: parsed.deviceId,
       };
       return;

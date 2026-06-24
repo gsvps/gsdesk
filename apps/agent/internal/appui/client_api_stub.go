@@ -9,6 +9,8 @@ import (
 	"github.com/clouddesk/agent/internal/config"
 )
 
+func SetSkipBrowserOpenOnStart(_ bool) {}
+
 func RunInstaller(cfg *config.Config, factory AgentFactory) error {
 	return fmt.Errorf("install is only supported on Windows")
 }

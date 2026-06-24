@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   applyBackendToRuntime,
   BACKEND_MODE_LABEL,
-  defaultBackendConfig,
   loadBackendConfig,
   saveBackendConfig,
   suggestedApiBase,
@@ -10,32 +9,41 @@ import {
   type BackendConfig,
   type BackendMode,
 } from '../lib/backend-config';
-import { hasAgentBridge, loadAgentState, syncAgentServerUrl } from '../lib/agent-bridge';
+import { hasAgentBridge, syncAgentServerUrl } from '../lib/agent-bridge';
+import { useAuth } from '../lib/auth';
+import { notifyConfigUpdated, savePreferredApiBase, useBrowserLocalPrefs } from '../lib/browser-prefs';
+import { isAgentLocalServer } from '../lib/bridge-http';
 import { isDesktopClient, setRuntimeApiBase } from '../lib/runtime-config';
+import { useDebouncedEffect } from '../lib/use-debounce';
 
-export default function BackendSettings() {
+export default function BackendSettings({ compact = false }: { compact?: boolean }) {
+  const { token, tokenVerified, setToken } = useAuth();
   const [config, setConfig] = useState<BackendConfig>(() => loadBackendConfig());
+  const [tokenValue, setTokenValue] = useState(token ?? '');
+  const [showToken, setShowToken] = useState(false);
   const [status, setStatus] = useState('');
   const [statusKind, setStatusKind] = useState<'success' | 'error' | ''>('');
-  const [busy, setBusy] = useState(false);
+  const [tokenStatus, setTokenStatus] = useState('');
+  const [tokenStatusKind, setTokenStatusKind] = useState<'success' | 'error' | ''>('');
+  const [apiBusy, setApiBusy] = useState(false);
+  const [tokenBusy, setTokenBusy] = useState(false);
 
   useEffect(() => {
     const loaded = loadBackendConfig();
-    if (isDesktopClient() && hasAgentBridge()) {
-      void loadAgentState()
-        .then((agent) => {
-          const apiBase = agent.server_url?.replace(/\/$/, '') || loaded.apiBase;
-          const mode: BackendMode = apiBase.includes('127.0.0.1') || apiBase.includes('localhost') ? 'local' : 'cloudflare';
-          setConfig({ mode: loaded.apiBase ? loaded.mode : mode, apiBase: apiBase || loaded.apiBase });
-          setRuntimeApiBase(apiBase || loaded.apiBase);
-        })
-        .catch(() => {
-          setRuntimeApiBase(applyBackendToRuntime(loaded));
-        });
-      return;
-    }
+    setConfig(loaded);
     setRuntimeApiBase(applyBackendToRuntime(loaded));
+
+    if (isAgentLocalServer() && hasAgentBridge()) {
+      const apiBase = applyBackendToRuntime(loaded);
+      if (apiBase) {
+        void syncAgentServerUrl(apiBase).catch(() => {});
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    setTokenValue(token ?? '');
+  }, [token]);
 
   function updateMode(mode: BackendMode) {
     setConfig((prev) => ({
@@ -46,19 +54,15 @@ export default function BackendSettings() {
 
   const apiBaseFilled = Boolean(config.apiBase.trim()) || config.mode === 'local';
 
-  async function handleSave() {
-    if (!apiBaseFilled) {
-      setStatusKind('error');
-      setStatus('请先填写 API 地址');
-      return;
-    }
-    setBusy(true);
+  const persistApi = useCallback(async () => {
+    if (!apiBaseFilled) return;
+    const next = {
+      ...config,
+      apiBase: config.apiBase.trim() || suggestedApiBase(config.mode),
+    };
+    setApiBusy(true);
     setStatus('');
     try {
-      const next = {
-        ...config,
-        apiBase: config.apiBase.trim() || suggestedApiBase(config.mode),
-      };
       const test = await testBackendConnection(next.apiBase);
       if (!test.ok) {
         setStatusKind('error');
@@ -66,63 +70,85 @@ export default function BackendSettings() {
         return;
       }
       saveBackendConfig(next);
+      savePreferredApiBase(next.apiBase, next.mode);
       setConfig(next);
+      const apiBase = next.apiBase.trim() || suggestedApiBase(next.mode);
+      setRuntimeApiBase(apiBase);
       if (isDesktopClient() && hasAgentBridge()) {
-        const apiBase = next.apiBase.trim() || suggestedApiBase(next.mode);
         const sync = await syncAgentServerUrl(apiBase);
         if (!sync.ok) {
           setStatusKind('error');
-          setStatus(sync.error || '同步 Agent 服务器地址失败');
+          setStatus(sync.error || '同步 Agent 失败');
           return;
         }
-        setRuntimeApiBase(apiBase);
-        setStatusKind('success');
-        setStatus(`${test.message}。设置已保存，本机 Agent 正在后台连接，请稍后在主页点刷新。`);
-        return;
       }
-      setRuntimeApiBase(applyBackendToRuntime(next));
       setStatusKind('success');
-      setStatus(`${test.message}。控制端 API 已切换。`);
+      setStatus(`${test.message} · 已自动保存`);
+      notifyConfigUpdated();
     } finally {
-      setBusy(false);
+      setApiBusy(false);
     }
-  }
+  }, [apiBaseFilled, config]);
 
-  async function handleTest() {
-    setBusy(true);
-    setStatus('');
+  const persistToken = useCallback(
+    async (next: string) => {
+      const trimmed = next.trim();
+      if (!trimmed || trimmed === (token ?? '')) return;
+      setTokenBusy(true);
+      try {
+        await setToken(trimmed);
+        setTokenStatusKind('success');
+        setTokenStatus('令牌已自动保存并验证');
+        notifyConfigUpdated();
+      } catch (err) {
+        setTokenStatusKind('error');
+        setTokenStatus(err instanceof Error ? err.message : '令牌验证失败');
+      } finally {
+        setTokenBusy(false);
+      }
+    },
+    [setToken, token]
+  );
+
+  useDebouncedEffect(() => void persistApi(), [config.apiBase, config.mode], 800, apiBaseFilled, true);
+
+  useDebouncedEffect(
+    () => void persistToken(tokenValue),
+    [tokenValue],
+    800,
+    Boolean(tokenValue.trim()) && tokenValue.trim() !== (token ?? ''),
+    true
+  );
+
+  async function handleCopyToken() {
+    const text = tokenValue.trim();
+    if (!text) return;
     try {
-      const base = config.apiBase.trim() || suggestedApiBase(config.mode);
-      const test = await testBackendConnection(base);
-      setStatusKind(test.ok ? 'success' : 'error');
-      setStatus(test.message);
-    } finally {
-      setBusy(false);
+      await navigator.clipboard.writeText(text);
+      setTokenStatusKind('success');
+      setTokenStatus('已复制');
+    } catch {
+      setTokenStatusKind('error');
+      setTokenStatus('复制失败');
     }
-  }
-
-  function handleReset() {
-    const next = defaultBackendConfig();
-    setConfig(next);
-    saveBackendConfig(next);
-    setRuntimeApiBase('');
-    setStatusKind('success');
-    setStatus('已恢复默认（本地开发 / 页面同源）。');
   }
 
   return (
-    <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-5">
-      <h4 className="font-medium text-slate-200">后端 / 加速节点</h4>
-      <p className="mt-1 text-sm text-slate-400">
-        与 Agent 的「服务器地址」指向同一套 API + 信令服务。WebRTC 画面仍为 P2P 直连，不经 VPS 中转。
-      </p>
+    <section className={`rounded-xl border border-slate-700 bg-slate-900/60 ${compact ? 'flex h-full flex-col p-3' : 'p-5'}`}>
+      <h4 className={`font-medium text-slate-200 ${compact ? 'text-sm' : ''}`}>连接配置</h4>
+      {!compact && (
+        <p className="mt-1 text-sm text-slate-400">
+          填写后自动保存。WebRTC 画面仍为 P2P 直连。
+          {useBrowserLocalPrefs() && ' 保存在浏览器 localStorage。'}
+        </p>
+      )}
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className={`flex flex-wrap gap-2 ${compact ? 'mt-2' : 'mt-3'}`}>
         {(Object.keys(BACKEND_MODE_LABEL) as BackendMode[]).map((mode) => (
           <button
             key={mode}
             type="button"
-            className={`rounded-lg border px-3 py-2 text-sm ${
+            className={`rounded-lg border px-2 py-1 text-xs ${
               config.mode === mode
                 ? 'border-sky-500 bg-sky-950/50 text-sky-200'
                 : 'border-slate-600 text-slate-300 hover:bg-slate-800'
@@ -132,52 +158,61 @@ export default function BackendSettings() {
             {BACKEND_MODE_LABEL[mode]}
           </button>
         ))}
+        {apiBusy && <span className="self-center text-xs text-slate-500">API 保存中…</span>}
       </div>
 
-      <label className="mt-4 block text-sm text-slate-400">
+      <label className={`block text-sm text-slate-400 ${compact ? 'mt-2' : 'mt-3'}`}>
         API 地址
         <input
           value={config.apiBase}
           onChange={(e) => setConfig((prev) => ({ ...prev, apiBase: e.target.value }))}
-          placeholder={suggestedApiBase(config.mode) || 'https://your-node.example.com'}
+          onBlur={() => void persistApi()}
+          placeholder={suggestedApiBase(config.mode) || 'https://your-worker.workers.dev'}
           className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm text-white"
         />
       </label>
-
-      <p className="mt-2 text-xs text-slate-500">
-        {config.mode === 'cloudflare' && '填写 Cloudflare Worker 部署地址，例如 https://clouddesk.example.com'}
-        {config.mode === 'self_hosted' && '填写 VPS 自托管地址，需运行 apps/server（见 docs/self-host.md）'}
-        {config.mode === 'local' && '默认 http://127.0.0.1:8787；Vite 开发时可留空走代理'}
-      </p>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          className={apiBaseFilled ? 'btn-primary' : 'rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-slate-400 cursor-not-allowed'}
-          disabled={busy || !apiBaseFilled}
-          onClick={() => void handleSave()}
-        >
-          {busy ? '保存中…' : '保存并应用'}
-        </button>
-        <button
-          type="button"
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800 disabled:opacity-50"
-          disabled={busy}
-          onClick={() => void handleTest()}
-        >
-          测试连接
-        </button>
-        <button
-          type="button"
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800"
-          onClick={handleReset}
-        >
-          恢复默认
-        </button>
-      </div>
-
       {status && (
-        <p className={`mt-3 text-sm ${statusKind === 'error' ? 'text-red-400' : 'text-emerald-300'}`}>{status}</p>
+        <p className={`mt-1 text-xs ${statusKind === 'error' ? 'text-red-400' : 'text-emerald-300'}`}>{status}</p>
+      )}
+
+      <label className={`block text-sm text-slate-400 ${compact ? 'mt-2' : 'mt-3'}`}>
+        <span className="flex items-center justify-between gap-2">
+          <span>控制器令牌</span>
+          <span className={`text-xs ${tokenVerified ? 'text-emerald-400' : 'text-amber-300'}`}>
+            {tokenVerified ? '已验证' : '未验证'}
+            {tokenBusy ? ' · 保存中…' : ''}
+          </span>
+        </span>
+        <div className="mt-1 flex gap-1">
+          <input
+            type={showToken ? 'text' : 'password'}
+            value={tokenValue}
+            onChange={(e) => setTokenValue(e.target.value)}
+            onBlur={() => void persistToken(tokenValue)}
+            placeholder="CONTROLLER_JWT_SECRET"
+            className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm text-white"
+          />
+          <button
+            type="button"
+            title={showToken ? '隐藏' : '显示'}
+            className="shrink-0 rounded-lg border border-slate-600 px-2.5 py-2 text-sm hover:bg-slate-800"
+            onClick={() => setShowToken((v) => !v)}
+          >
+            {showToken ? '隐藏' : '显示'}
+          </button>
+          <button
+            type="button"
+            className="shrink-0 rounded-lg border border-slate-600 px-2 py-2 text-xs hover:bg-slate-800"
+            onClick={() => void handleCopyToken()}
+          >
+            复制
+          </button>
+        </div>
+      </label>
+      {tokenStatus && (
+        <p className={`mt-1 text-xs ${tokenStatusKind === 'error' ? 'text-red-400' : 'text-emerald-300'}`}>
+          {tokenStatus}
+        </p>
       )}
     </section>
   );

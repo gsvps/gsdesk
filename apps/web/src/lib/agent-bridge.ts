@@ -60,6 +60,7 @@ declare global {
     copyText?: (text: string) => Promise<string> | string;
     browseDownloadDirGo?: (current: string) => Promise<string> | string;
     generateOTPGo?: () => Promise<string> | string;
+    refreshOTPGo?: () => Promise<string> | string;
     getOTPStatusGo?: () => Promise<string> | string;
     clearPermanentPasswordGo?: () => Promise<string> | string;
     saveSettingsGo?: (raw: string) => Promise<string> | string;
@@ -109,7 +110,7 @@ export function agentStateToSavePayload(state: AgentUIState, overrides: Partial<
     clear_permanent_password: overrides.clear_permanent_password ?? false,
     agent_enabled: overrides.agent_enabled ?? state.agent_enabled,
     otp_idle_refresh_minutes: overrides.otp_idle_refresh_minutes ?? state.otp_idle_refresh_minutes,
-    close_to_tray: overrides.close_to_tray ?? state.close_to_tray ?? true,
+    close_to_tray: overrides.close_to_tray ?? false,
   };
 }
 
@@ -136,6 +137,10 @@ export async function syncAgentServerUrl(serverUrl: string): Promise<AgentAction
 
 export async function generateAgentOTP(): Promise<AgentActionResult> {
   return callBridge<AgentActionResult>(() => window.generateOTPGo?.());
+}
+
+export async function refreshAgentOTP(): Promise<AgentActionResult> {
+  return callBridge<AgentActionResult>(() => window.refreshOTPGo?.());
 }
 
 export async function getAgentOTPStatus(): Promise<AgentOTPStatus> {

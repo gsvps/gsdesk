@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import ConnectPasswordModal from '../components/ConnectPasswordModal';
 import { useAuth } from '../lib/auth';
 import { apiFetch, type DeviceInfo, type SessionCreateResult } from '../lib/api';
@@ -12,6 +12,7 @@ import {
   renameLocalDevice,
   type LocalDevice,
 } from '../lib/local-devices';
+import { CONFIG_UPDATED_EVENT } from '../lib/browser-prefs';
 import {
   setRememberedPassword,
   shouldShowPasswordModal,
@@ -22,7 +23,7 @@ interface ListedDevice extends LocalDevice {
   remote?: DeviceInfo;
 }
 
-export default function ControllerPanel() {
+export default function ControllerPanel({ compact = false }: { compact?: boolean }) {
   const { tokenVerified, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [devices, setDevices] = useState<ListedDevice[]>(() => loadLocalDevices());
@@ -82,9 +83,18 @@ export default function ControllerPanel() {
     return () => clearInterval(timer);
   }, [tokenVerified, authLoading]);
 
+  useEffect(() => {
+    const onConfigUpdated = () => {
+      if (authLoading) return;
+      void refreshRemoteStatus(loadLocalDevices(), true);
+    };
+    window.addEventListener(CONFIG_UPDATED_EVENT, onConfigUpdated);
+    return () => window.removeEventListener(CONFIG_UPDATED_EVENT, onConfigUpdated);
+  }, [authLoading, tokenVerified]);
+
   async function fetchRemoteDevice(id: string): Promise<{ remote: DeviceInfo | null; error?: string }> {
     if (!tokenVerified) {
-      return { remote: null, error: '请先在设置中配置并通过验证的控制器令牌' };
+      return { remote: null, error: '请先在左侧配置并通过验证的控制器令牌' };
     }
     try {
       const remote = await apiFetch<DeviceInfo>(`/api/device/${formatDeviceId(id)}`);
@@ -95,7 +105,7 @@ export default function ControllerPanel() {
         return { remote: null, error: '设备不存在，请确认 8 位 ID 正确（非旧 dev_ 格式）' };
       }
       if (message.includes('无效') || message.includes('UNAUTHORIZED') || message.includes('请先配置')) {
-        return { remote: null, error: '控制器令牌无效，请到设置中重新保存' };
+        return { remote: null, error: '控制器令牌无效，请重新保存' };
       }
       return { remote: null, error: message };
     }
@@ -108,7 +118,7 @@ export default function ControllerPanel() {
     passwordType?: AccessPasswordType
   ) {
     if (!tokenVerified) {
-      setError('请先在设置中配置并通过验证的控制器令牌');
+      setError('请先在左侧配置并通过验证的控制器令牌');
       return;
     }
     setConnecting(deviceId);
@@ -144,7 +154,7 @@ export default function ControllerPanel() {
       return;
     }
     if (!tokenVerified) {
-      setError('请先在设置中配置并通过验证的控制器令牌');
+      setError('请先在左侧配置并通过验证的控制器令牌');
       return;
     }
 
@@ -188,61 +198,57 @@ export default function ControllerPanel() {
   const canConnect = tokenVerified;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className={`flex h-full flex-col overflow-hidden ${compact ? 'rounded-xl border border-slate-700 bg-slate-900/60 p-3' : 'space-y-4'}`}>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-lg font-medium text-white">远程控制</h3>
-          <p className="text-sm text-slate-400">输入 8 位 ID 直接连接，成功后自动保存到列表</p>
+          <h3 className={`font-medium text-white ${compact ? 'text-sm' : 'text-lg'}`}>远程控制</h3>
+          {!compact && <p className="text-sm text-slate-400">输入 8 位 ID 直接连接，成功后自动保存到列表</p>}
         </div>
         {!authLoading && !canConnect && (
-          <Link
-            to="/settings"
-            className="rounded-lg border border-amber-700/60 bg-amber-950/30 px-3 py-1.5 text-sm text-amber-200 hover:bg-amber-950/50"
-          >
-            请先在设置中配置令牌
-          </Link>
+          <span className="rounded-lg border border-amber-700/60 bg-amber-950/30 px-2 py-1 text-xs text-amber-200">
+            请先配置令牌
+          </span>
         )}
       </div>
 
-      <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-4">
-        <form className="flex flex-wrap items-end gap-2" onSubmit={handleQuickConnect}>
-          <label className="min-w-[10rem] flex-1 text-sm text-slate-400">
-            设备 ID
-            <input
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm tracking-widest"
-              placeholder="8 位数字"
-              inputMode="numeric"
-              maxLength={8}
-              value={connectId}
-              onChange={(e) => setConnectId(e.target.value.replace(/\D/g, '').slice(0, 8))}
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={authLoading || !canConnect || connecting !== null || connectId.length !== 8}
-            className="btn-primary px-5"
-          >
-            {connecting && !devices.some((d) => d.id === formatDeviceId(connectId)) ? '连接中...' : '连接'}
-          </button>
-        </form>
-      </section>
+      <form className={`flex shrink-0 flex-wrap items-end gap-2 ${compact ? 'mt-2' : ''}`} onSubmit={handleQuickConnect}>
+        <label className={`min-w-0 flex-1 text-slate-400 ${compact ? 'text-xs' : 'min-w-[10rem] text-sm'}`}>
+          设备 ID
+          <input
+            className={`mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 font-mono tracking-widest ${compact ? 'px-2 py-1 text-sm' : 'px-3 py-2 text-sm'}`}
+            placeholder="8 位数字"
+            inputMode="numeric"
+            maxLength={8}
+            value={connectId}
+            onChange={(e) => setConnectId(e.target.value.replace(/\D/g, '').slice(0, 8))}
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={authLoading || !canConnect || connecting !== null || connectId.length !== 8}
+          className={`btn-primary ${compact ? 'px-3 py-1.5 text-sm' : 'px-5'}`}
+        >
+          {connecting && !devices.some((d) => d.id === formatDeviceId(connectId)) ? '连接中...' : '连接'}
+        </button>
+      </form>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="shrink-0 text-xs text-red-400">{error}</p>}
 
-      <section>
-        <h4 className="mb-3 font-medium text-slate-200">最近连接</h4>
+      <section className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <h4 className={`shrink-0 font-medium text-slate-200 ${compact ? 'mb-1 text-sm' : 'mb-3'}`}>最近连接</h4>
+        <div className="min-h-0 flex-1 overflow-y-auto">
         {devices.length === 0 ? (
-          <p className="text-slate-400">暂无记录，连接成功后会自动出现在这里</p>
+          <p className="text-xs text-slate-400">暂无记录</p>
         ) : authLoading || (loading && devices.every((item) => !item.remote)) ? (
-          <p className="text-slate-400">加载中...</p>
+          <p className="text-xs text-slate-400">加载中...</p>
         ) : (
-          <div className="space-y-2">
+          <div className={`${compact ? 'space-y-1' : 'space-y-2'}`}>
             {devices.map((device) => {
               const remote = device.remote;
               const online = canConnect && Boolean(remote?.online);
               const isEditing = editingId === device.id;
               return (
-                <div key={device.id} className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3">
+                <div key={device.id} className={`rounded-lg border border-slate-700 bg-slate-950/50 ${compact ? 'px-2 py-1.5' : 'rounded-xl bg-slate-900/60 px-4 py-3'}`}>
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       {isEditing ? (
@@ -328,6 +334,7 @@ export default function ControllerPanel() {
             })}
           </div>
         )}
+        </div>
       </section>
 
       {passwordDevice && (

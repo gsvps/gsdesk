@@ -24,10 +24,14 @@ async function bridgeGet(name: string, query?: Record<string, string>): Promise<
 }
 
 async function bridgePost(name: string, body?: unknown): Promise<string> {
+  let payload: string | undefined;
+  if (body !== undefined) {
+    payload = typeof body === 'string' ? body : JSON.stringify(body);
+  }
   const res = await fetch(bridgeURL(name), {
     method: 'POST',
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    headers: payload !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    body: payload,
   });
   if (!res.ok) throw new Error(`bridge ${name} failed: HTTP ${res.status}`);
   return res.text();
@@ -60,6 +64,7 @@ export function installAgentHttpBridge(): void {
   window.reconnectAgentGo = () => bridgePost('reconnectAgentGo');
   window.copyText = (text: string) => bridgePost('copyText', { text });
   window.generateOTPGo = () => bridgePost('generateOTPGo');
+  window.refreshOTPGo = () => bridgePost('refreshOTPGo');
   window.clearPermanentPasswordGo = () => bridgePost('clearPermanentPasswordGo');
   window.saveSettingsGo = (raw: string) => bridgePost('saveSettingsGo', raw);
   window.closeWindowGo = () => bridgePost('closeWindowGo');

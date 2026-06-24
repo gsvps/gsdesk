@@ -129,7 +129,7 @@ func RunningFromInstallDir() bool {
 	return strings.EqualFold(filepath.Clean(exeDir), filepath.Clean(rootAbs))
 }
 
-// NeedsInstallSetup is true when the unified client has not been installed to disk yet.
+// NeedsInstallSetup is deprecated; the client runs in portable mode without an install wizard.
 func NeedsInstallSetup() bool {
-	return readInstallRoot() == "" || !RunningFromInstallDir()
+	return false
 }

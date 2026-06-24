@@ -13,10 +13,10 @@ type StreamSettings struct {
 var (
 	settingsMu sync.RWMutex
 	settings   = StreamSettings{
-		MaxWidth:     maxStreamWidth,
-		FPS:          defaultFPS,
-		JPEGQuality:  68,
-		MaxJPEGBytes: 140 * 1024,
+		MaxWidth:     3840,
+		FPS:          24,
+		JPEGQuality:  98,
+		MaxJPEGBytes: maxJPEGBytes,
 	}
 )
 
@@ -39,9 +39,9 @@ func ApplyQualityPreset(preset string) {
 	case "medium":
 		next = StreamSettings{MaxWidth: 1280, FPS: 12, JPEGQuality: 68, MaxJPEGBytes: 140 * 1024}
 	case "high":
-		next = StreamSettings{MaxWidth: 1600, FPS: 15, JPEGQuality: 78, MaxJPEGBytes: 190 * 1024}
+		next = StreamSettings{MaxWidth: 1920, FPS: 16, JPEGQuality: 82, MaxJPEGBytes: 200 * 1024}
 	case "ultra":
-		next = StreamSettings{MaxWidth: 1920, FPS: 18, JPEGQuality: 85, MaxJPEGBytes: 230 * 1024}
+		next = StreamSettings{MaxWidth: 3840, FPS: 24, JPEGQuality: 98, MaxJPEGBytes: maxJPEGBytes}
 	default:
 		return
 	}

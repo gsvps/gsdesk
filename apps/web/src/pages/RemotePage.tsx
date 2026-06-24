@@ -68,7 +68,7 @@ export default function RemotePage() {
   });
   const [quality, setQuality] = useState<QualityPreset>(() => {
     const saved = sessionStorage.getItem('clouddesk:quality');
-    return saved === 'low' || saved === 'high' || saved === 'ultra' ? saved : 'medium';
+    return saved === 'low' || saved === 'medium' || saved === 'high' || saved === 'ultra' ? saved : 'ultra';
   });
   const [keyboardEnabled, setKeyboardEnabled] = useState(false);
   const [showFilePanel, setShowFilePanel] = useState(false);

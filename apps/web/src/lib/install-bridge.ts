@@ -48,6 +48,20 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function waitForRelaunchedClient(timeoutMs = 20000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await sleep(400);
+    try {
+      const state = await getInstallState();
+      if (!state.needs_setup) return true;
+    } catch {
+      // 安装向导进程退出、新实例尚未就绪时会短暂失败，继续轮询。
+    }
+  }
+  return false;
+}
+
 export async function getInstallState(): Promise<InstallState> {
   if (typeof window.getInstallStateGo !== 'function') {
     return {
@@ -71,6 +85,10 @@ export async function getInstallProgress(): Promise<InstallProgress> {
     return { running: false, done: false, ok: false, step: '', percent: 0 };
   }
   return parseJSON<InstallProgress>(await window.getInstallProgressGo());
+}
+
+export async function waitForInstallRelaunch(timeoutMs = 20000): Promise<boolean> {
+  return waitForRelaunchedClient(timeoutMs);
 }
 
 export async function runInstall(installDir: string, createDesktopShortcut = true): Promise<InstallResult> {

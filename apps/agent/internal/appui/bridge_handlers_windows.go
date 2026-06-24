@@ -166,6 +166,20 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		writeJSON(w, actionResult{OK: true, Message: "正在生成一次性密码…"})
 	})
 
+	mux.HandleFunc("/__clouddesk/bridge/refreshOTPGo", func(w http.ResponseWriter, r *http.Request) {
+		agent := agentView()
+		if agent == nil {
+			writeJSON(w, actionResult{OK: false, Error: "Agent 服务未就绪"})
+			return
+		}
+		if err := agent.RefreshOTP(); err != nil {
+			writeJSON(w, actionResult{OK: false, Error: err.Error()})
+			return
+		}
+		code, expiresIn, _, _ := agent.OTPStatus()
+		writeJSON(w, actionResult{OK: true, Code: code, ExpiresIn: expiresIn})
+	})
+
 	mux.HandleFunc("/__clouddesk/bridge/getOTPStatusGo", func(w http.ResponseWriter, r *http.Request) {
 		agent := agentView()
 		if agent == nil {
@@ -197,8 +211,8 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 
 	mux.HandleFunc("/__clouddesk/bridge/saveSettingsGo", func(w http.ResponseWriter, r *http.Request) {
 		raw, _ := io.ReadAll(r.Body)
-		var payload savePayload
-		if err := json.Unmarshal(raw, &payload); err != nil {
+		payload, err := parseSavePayload(raw)
+		if err != nil {
 			writeJSON(w, actionResult{OK: false, Error: err.Error()})
 			return
 		}
@@ -229,10 +243,7 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 
 	mux.HandleFunc("/__clouddesk/bridge/runInstallGo", func(w http.ResponseWriter, r *http.Request) {
 		raw, _ := io.ReadAll(r.Body)
-		var req install.InstallRequest
-		if err := json.Unmarshal(raw, &req); err != nil || strings.TrimSpace(req.InstallDir) == "" {
-			req = install.InstallRequest{InstallDir: string(raw), CreateDesktopShortcut: true}
-		}
+		req := parseInstallRequest(raw)
 
 		installMu.Lock()
 		if installProgress.Running {
@@ -326,6 +337,40 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 	})
 }
 
+func parseInstallRequest(raw []byte) install.InstallRequest {
+	var req install.InstallRequest
+	if err := json.Unmarshal(raw, &req); err == nil && strings.TrimSpace(req.InstallDir) != "" {
+		return req
+	}
+	var asString string
+	if err := json.Unmarshal(raw, &asString); err == nil && strings.TrimSpace(asString) != "" {
+		if err := json.Unmarshal([]byte(asString), &req); err == nil && strings.TrimSpace(req.InstallDir) != "" {
+			return req
+		}
+	}
+	text := strings.TrimSpace(string(raw))
+	if strings.HasPrefix(text, "{") {
+		if err := json.Unmarshal([]byte(text), &req); err == nil && strings.TrimSpace(req.InstallDir) != "" {
+			return req
+		}
+	}
+	return install.InstallRequest{InstallDir: text, CreateDesktopShortcut: true}
+}
+
+func parseSavePayload(raw []byte) (savePayload, error) {
+	var payload savePayload
+	if err := json.Unmarshal(raw, &payload); err == nil {
+		return payload, nil
+	}
+	var asString string
+	if err := json.Unmarshal(raw, &asString); err == nil {
+		if err := json.Unmarshal([]byte(asString), &payload); err == nil {
+			return payload, nil
+		}
+	}
+	return savePayload{}, fmt.Errorf("invalid settings payload")
+}
+
 func defaultInstallSuccess(installDir string) error {
 	installDir = strings.TrimSpace(installDir)
 	if installDir == "" {
@@ -335,15 +380,13 @@ func defaultInstallSuccess(installDir string) error {
 	if _, err := os.Stat(installedExe); err != nil {
 		return fmt.Errorf("未找到已安装程序: %s", installedExe)
 	}
-	go func() {
-		time.Sleep(400 * time.Millisecond)
-		cmd := exec.Command(installedExe)
-		cmd.Dir = installDir
-		if err := cmd.Start(); err != nil {
-			showError("安装完成，但无法启动 CloudDesk:\n" + err.Error() + "\n\n请手动运行:\n" + installedExe)
-			return
-		}
-		exitApplication(nil)
-	}()
+	// 先关闭安装向导 HTTP 服务，避免新进程被单实例检测误判为已运行。
+	shutdownUIServer()
+	cmd := exec.Command(installedExe, "--from-install")
+	cmd.Dir = installDir
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("安装完成，但无法启动 CloudDesk: %w\n\n请手动运行:\n%s", err, installedExe)
+	}
+	exitApplication(nil)
 	return nil
 }

@@ -31,6 +31,8 @@ type webviewClientWindowOpts struct {
 	onInstallSuccess func(w webview.WebView, homeURL string, installDir string) error
 }
 
+func SetSkipBrowserOpenOnStart(_ bool) {}
+
 func showClientWindow(cfg *config.Config, save SaveFunc, agent AgentView, tab string, block bool) {
 	go func() {
 		windowMu.Lock()
@@ -215,6 +217,18 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 			}
 		}()
 		return mustJSON(actionResult{OK: true, Message: "正在生成一次性密码…"})
+	})
+
+	w.Bind("refreshOTPGo", func() string {
+		agent := agentView()
+		if agent == nil {
+			return mustJSON(actionResult{OK: false, Error: "Agent 服务未就绪"})
+		}
+		if err := agent.RefreshOTP(); err != nil {
+			return mustJSON(actionResult{OK: false, Error: err.Error()})
+		}
+		code, expiresIn, _, _ := agent.OTPStatus()
+		return mustJSON(actionResult{OK: true, Code: code, ExpiresIn: expiresIn})
 	})
 
 	w.Bind("getOTPStatusGo", func() string {

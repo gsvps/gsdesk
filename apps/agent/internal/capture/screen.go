@@ -15,10 +15,10 @@ import (
 	"github.com/pion/webrtc/v4/pkg/media"
 )
 
-const defaultFPS = 10
-const maxStreamWidth = 1280
+const defaultFPS = 12
+const maxStreamWidth = 3840
 // WebRTC DataChannel 单条消息上限约 256KB；二进制帧仅 8 字节头，可传更大 JPEG
-const maxJPEGBytes = 240 * 1024
+const maxJPEGBytes = 254 * 1024
 
 // Binary screen frame header: "CDSF" + width(u16 BE) + height(u16 BE) + jpeg bytes
 var binaryFrameMagic = []byte{'C', 'D', 'S', 'F'}
@@ -174,7 +174,13 @@ func encodeJPEG(img image.Image, cfg StreamSettings) ([]byte, error) {
 	if maxBytes <= 0 {
 		maxBytes = maxJPEGBytes
 	}
-	for quality := targetQuality; quality >= 25; quality -= 5 {
+	minQuality := 40
+	step := 3
+	if targetQuality >= 92 {
+		minQuality = 62
+		step = 2
+	}
+	for quality := targetQuality; quality >= minQuality; quality -= step {
 		var buf bytes.Buffer
 		if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: quality}); err != nil {
 			return nil, err
@@ -184,7 +190,7 @@ func encodeJPEG(img image.Image, cfg StreamSettings) ([]byte, error) {
 		}
 	}
 	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 25}); err != nil {
+	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: minQuality}); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil

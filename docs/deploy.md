@@ -104,4 +104,4 @@ go build -tags cgo -o clouddesk-agent.exe .
 | 设备显示离线 | 确认 Agent 已启动且 `CLOUDDESK_SERVER` 正确 |
 | WebRTC 连接失败 | 检查 NAT/防火墙；MVP 未配置 TURN |
 | VP8 无画面 | 确认 Agent 用 CGO+libvpx 编译，或依赖 JPEG 回退 |
-| D1 迁移失败 | 运行 `npm run db:migrate` 后再 deploy |
+| D1 迁移失败 / `db_ready: false` | 重新部署最新 Worker（会自动建表）；或 `npm run db:migrate`。若**删过 D1 再重建**，请在 Cloudflare → Worker → **Settings → Bindings** 确认 `DB` 已绑定到新 D1 `clouddesk`，再 redeploy |

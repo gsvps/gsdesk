@@ -13,11 +13,29 @@ import (
 )
 
 var (
-	httpUIMu       sync.Mutex
-	httpUIStarted  bool
-	httpUIPort     int
-	httpUISession  *bridgeSession
+	httpUIMu              sync.Mutex
+	httpUIStarted         bool
+	httpUIPort            int
+	httpUISession         *bridgeSession
+	skipBrowserOpenOnStart bool
 )
+
+// SetSkipBrowserOpenOnStart 安装完成后由已有浏览器标签接管 UI，避免再开新标签。
+func SetSkipBrowserOpenOnStart(v bool) {
+	httpUIMu.Lock()
+	skipBrowserOpenOnStart = v
+	httpUIMu.Unlock()
+}
+
+func consumeSkipBrowserOpen() bool {
+	httpUIMu.Lock()
+	defer httpUIMu.Unlock()
+	if !skipBrowserOpenOnStart {
+		return false
+	}
+	skipBrowserOpenOnStart = false
+	return true
+}
 
 func showClientWindow(cfg *config.Config, save SaveFunc, agent AgentView, tab string, block bool) {
 	go func() {
@@ -70,8 +88,10 @@ func openAgentUI(cfg *config.Config, holder *agentHolder, tab string, installDon
 		path = "/install"
 	}
 
-	if err := openBrowserUI(path); err != nil {
-		return err
+	if !consumeSkipBrowserOpen() {
+		if err := openBrowserUI(path); err != nil {
+			return err
+		}
 	}
 
 	if installDone != nil {

@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Switch from '../components/Switch';
-import { browseInstallDir, getInstallProgress, getInstallState, runInstall, type InstallState } from '../lib/install-bridge';
+import { browseInstallDir, getInstallProgress, getInstallState, runInstall, waitForInstallRelaunch, type InstallState } from '../lib/install-bridge';
 import { isDesktopClient } from '../lib/runtime-config';
 
 export default function InstallPage() {
@@ -61,9 +61,17 @@ export default function InstallPage() {
       }
       setMessage(result.message || '安装完成');
       setPercent(100);
-      if (!result.relaunch) {
-        navigate('/', { replace: true });
+      if (result.relaunch) {
+        setMessage('安装完成，正在进入主页…');
+        const ready = await waitForInstallRelaunch();
+        if (ready) {
+          navigate('/', { replace: true });
+        } else {
+          setMessage('安装完成。若未自动进入主页，请运行安装目录中的 CloudDesk.exe。');
+        }
+        return;
       }
+      navigate('/', { replace: true });
     } catch (err) {
       setError(String(err));
     } finally {
@@ -81,7 +89,7 @@ export default function InstallPage() {
       <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900/90 p-8 shadow-2xl">
         <h1 className="text-2xl font-semibold text-white">安装 CloudDesk</h1>
         <p className="mt-2 text-sm text-slate-400">
-          将客户端安装到指定目录。安装过程会自动复制程序、创建数据目录，并在需要时下载 WebView2 运行库。
+          将客户端安装到指定目录。安装过程会自动复制程序并创建数据目录；管理界面使用系统浏览器打开，无需 WebView2。
         </p>
 
         <form className="mt-6 space-y-4" onSubmit={onInstall}>

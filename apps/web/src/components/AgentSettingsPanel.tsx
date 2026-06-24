@@ -11,6 +11,8 @@ import {
   type AgentSavePayload,
   type AgentUIState,
 } from '../lib/agent-bridge';
+import { loadPreferredApiBase, savePreferredApiBase } from '../lib/browser-prefs';
+import { setRuntimeApiBase } from '../lib/runtime-config';
 import { checkForUpdate, getClientVersion, openExternalURL, type UpdateCheckResult } from '../lib/update-bridge';
 
 
@@ -29,7 +31,7 @@ const QUALITY_OPTIONS = [
 
 
 
-export default function AgentSettingsPanel() {
+export default function AgentSettingsPanel({ compact = false }: { compact?: boolean }) {
 
   const bridge = hasAgentBridge();
 
@@ -51,7 +53,10 @@ export default function AgentSettingsPanel() {
   useEffect(() => {
     if (!bridge) return;
     loadAgentState()
-      .then(setState)
+      .then((agentState) => {
+        const browserBase = loadPreferredApiBase();
+        setState(browserBase ? { ...agentState, server_url: browserBase } : agentState);
+      })
       .catch((err) => {
         setStatus(String(err));
         setStatusKind('error');
@@ -113,7 +118,7 @@ export default function AgentSettingsPanel() {
 
     const payload: AgentSavePayload = {
 
-      server_url: state.server_url,
+      server_url: compact ? loadPreferredApiBase() || state.server_url : state.server_url,
 
       device_name: state.device_name,
 
@@ -137,7 +142,7 @@ export default function AgentSettingsPanel() {
 
       otp_idle_refresh_minutes: state.otp_idle_refresh_minutes,
 
-      close_to_tray: state.close_to_tray ?? true,
+      close_to_tray: false,
 
     };
 
@@ -154,6 +159,12 @@ export default function AgentSettingsPanel() {
       }
 
       if (result.state) setState(result.state);
+
+      const savedUrl = (result.state?.server_url ?? state.server_url).replace(/\/$/, '');
+      if (savedUrl) {
+        savePreferredApiBase(savedUrl);
+        setRuntimeApiBase(savedUrl);
+      }
 
       showStatus(result.message || '设置已保存。', 'success');
 
@@ -190,7 +201,7 @@ export default function AgentSettingsPanel() {
         clear_permanent_password: false,
         agent_enabled: state.agent_enabled,
         otp_idle_refresh_minutes: state.otp_idle_refresh_minutes,
-        close_to_tray: state.close_to_tray ?? true,
+        close_to_tray: false,
       });
       if (!result.ok) {
         showStatus(result.error || '保存失败', 'error');
@@ -222,14 +233,17 @@ export default function AgentSettingsPanel() {
     }
   }
 
+  const section = compact
+    ? 'rounded-lg border border-slate-700 bg-slate-900/60 p-2'
+    : 'rounded-xl border border-slate-700 bg-slate-900/60 p-5';
+
   return (
-
-    <div className="space-y-4">
-
-      <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-5">
+    <div className={`${compact ? 'flex h-full flex-col gap-2 overflow-hidden' : 'space-y-4'}`}>
+      {!compact && (
+      <section className={section}>
         <h4 className="font-medium text-slate-200">Agent 服务器（API + 信令）</h4>
         <p className="mt-1 text-sm text-slate-400">
-          与设置页「后端 / 加速节点」一致：Cloudflare Worker 或 VPS 自托管（<code className="text-sky-300">apps/server</code>
+          与「后端 / 加速节点」一致：Cloudflare Worker 或 VPS 自托管（<code className="text-sky-300">apps/server</code>
           ）。修改后需重启 Agent。
         </p>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -252,14 +266,24 @@ export default function AgentSettingsPanel() {
           </label>
         </div>
       </section>
+      )}
 
+      {compact && (
+        <section className={section}>
+          <label className="block text-xs text-slate-400">
+            设备名称
+            <input
+              value={state.device_name}
+              onChange={(e) => setState({ ...state, device_name: e.target.value })}
+              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-white"
+            />
+          </label>
+        </section>
+      )}
 
-
-      <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-5">
-
-        <h4 className="font-medium text-slate-200">远程桌面</h4>
-
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
+      <section className={section}>
+        <h4 className={`font-medium text-slate-200 ${compact ? 'text-sm' : ''}`}>远程桌面</h4>
+        <div className={`grid gap-2 ${compact ? 'mt-1 grid-cols-2' : 'mt-3 md:grid-cols-2'}`}>
 
           <label className="block text-sm text-slate-400">
 
@@ -309,215 +333,114 @@ export default function AgentSettingsPanel() {
 
 
 
-      <section id="permanent-password" className="rounded-xl border border-slate-700 bg-slate-900/60 p-5 scroll-mt-6">
-
-        <h4 className="font-medium text-slate-200">访问密码</h4>
-
-        <label className="mt-3 block text-sm text-slate-400">
-          自定义密码（至少 4 位）
-          <div className="mt-1 flex flex-wrap gap-2">
+      <section id="permanent-password" className={`${section} ${compact ? 'min-h-0 flex-1 overflow-hidden' : 'scroll-mt-6'}`}>
+        <h4 className={`font-medium text-slate-200 ${compact ? 'text-sm' : ''}`}>访问密码</h4>
+        <label className={`block text-slate-400 ${compact ? 'mt-1 text-xs' : 'mt-3 text-sm'}`}>
+          自定义密码
+          <div className="mt-1 flex flex-wrap gap-1">
             <input
               type="password"
               value={permanentPassword}
               onChange={(e) => setPermanentPassword(e.target.value)}
-              placeholder="设置后远程连接可使用"
-              className="min-w-[12rem] flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+              placeholder="至少 4 位"
+              className={`min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 text-white ${compact ? 'px-2 py-1 text-sm' : 'min-w-[12rem] px-3 py-2'}`}
             />
-            <button
-              type="button"
-              disabled={passwordBusy}
-              className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
-              onClick={() => void handleClearPermanentPassword()}
-            >
+            <button type="button" disabled={passwordBusy} className="rounded-lg border border-slate-600 px-2 py-1 text-xs hover:bg-slate-800 disabled:opacity-50" onClick={() => void handleClearPermanentPassword()}>
               清除
             </button>
-            <button
-              type="button"
-              disabled={passwordBusy || !permanentPassword.trim()}
-              className="btn-primary"
-              onClick={() => void handleSavePermanentPassword()}
-            >
+            <button type="button" disabled={passwordBusy || !permanentPassword.trim()} className="btn-primary px-2 py-1 text-xs" onClick={() => void handleSavePermanentPassword()}>
               保存
             </button>
           </div>
         </label>
-        <p className="mt-2 text-xs text-slate-500">自定义密码长期有效；一次性密码见主页本机面板。</p>
-
-        <label className="mt-4 block text-sm text-slate-400">
-
-          无连接时自动更新一次性密码（分钟）
-
+        {!compact && <p className="mt-2 text-xs text-slate-500">自定义密码长期有效；一次性密码见本机面板。</p>}
+        <label className={`block text-slate-400 ${compact ? 'mt-1 text-xs' : 'mt-4 text-sm'}`}>
+          OTP 空闲刷新（分钟）
           <input
-
             type="number"
-
             min={1}
-
             max={120}
-
             value={state.otp_idle_refresh_minutes}
-
             onChange={(e) =>
-
               setState({
-
                 ...state,
-
                 otp_idle_refresh_minutes: Math.min(120, Math.max(1, Number(e.target.value) || 5)),
-
               })
-
             }
-
-            className="mt-1 w-full max-w-xs rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white"
-
+            className={`mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 text-white ${compact ? 'max-w-full px-2 py-1 text-sm' : 'max-w-xs px-3 py-2'}`}
           />
-
         </label>
-
-        <p className="mt-2 text-xs text-slate-500">本机无远程连接超过该时间后，一次性密码将自动重新生成。</p>
-
       </section>
 
-
-
-      <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-5">
-
-        <h4 className="font-medium text-slate-200">系统</h4>
-
-        <div className="mt-3 space-y-3">
-
-          <Switch checked={state.auto_accept} onChange={(v) => setState({ ...state, auto_accept: v })} label="自动接受连接（跳过确认弹窗）" />
-
+      <section className={section}>
+        <h4 className={`font-medium text-slate-200 ${compact ? 'text-sm' : ''}`}>系统</h4>
+        <div className={`${compact ? 'mt-1 grid grid-cols-1 gap-1' : 'mt-3 space-y-3'}`}>
           <Switch checked={state.launch_at_startup} onChange={(v) => setState({ ...state, launch_at_startup: v })} label="开机自启" />
-
-          <Switch checked={state.start_minimized} onChange={(v) => setState({ ...state, start_minimized: v })} label="启动时最小化到托盘" />
-
-          <Switch checked={state.close_to_tray ?? true} onChange={(v) => setState({ ...state, close_to_tray: v })} label="关闭窗口时退到托盘（不退出程序）" />
-
+          <Switch checked={state.start_minimized} onChange={(v) => setState({ ...state, start_minimized: v })} label="启动时最小化" />
         </div>
-
-        <label className="mt-4 block text-sm text-slate-400">
-
-          文件下载目录
-
-          <div className="mt-1 flex gap-2">
-
-            <input
-
-              value={state.download_dir}
-
-              onChange={(e) => setState({ ...state, download_dir: e.target.value })}
-
-              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white"
-
-            />
-
-            <button
-
-              type="button"
-
-              className="rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800"
-
-              onClick={() =>
-
-                browseAgentDownloadDir(state.download_dir)
-
-                  .then((path) => setState({ ...state, download_dir: path }))
-
-                  .catch((e) => showStatus(String(e), 'error'))
-
-              }
-
-            >
-
-              浏览
-
-            </button>
-
-          </div>
-
-        </label>
-
-        {state.config_path && <p className="mt-3 text-xs text-slate-500">配置文件: {state.config_path}</p>}
-
-        {state.install_path && <p className="text-xs text-slate-500">安装目录: {state.install_path}</p>}
+        {!compact && (
+          <>
+            <label className="mt-4 block text-sm text-slate-400">
+              文件下载目录
+              <div className="mt-1 flex gap-2">
+                <input value={state.download_dir} onChange={(e) => setState({ ...state, download_dir: e.target.value })} className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
+                <button type="button" className="rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800" onClick={() => browseAgentDownloadDir(state.download_dir).then((path) => setState({ ...state, download_dir: path })).catch((e) => showStatus(String(e), 'error'))}>
+                  浏览
+                </button>
+              </div>
+            </label>
+            {state.config_path && <p className="mt-3 text-xs text-slate-500">配置文件: {state.config_path}</p>}
+          </>
+        )}
       </section>
 
-      <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-5">
+      {!compact && (
+      <section className={section}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h4 className="font-medium text-slate-200">软件更新</h4>
             <p className="mt-1 text-sm text-slate-400">当前版本 {clientVersion || '—'}</p>
           </div>
-          <button
-            type="button"
-            disabled={checkingUpdate}
-            className="rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800 disabled:opacity-50"
-            onClick={() => void handleCheckUpdate()}
-          >
+          <button type="button" disabled={checkingUpdate} className="rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800 disabled:opacity-50" onClick={() => void handleCheckUpdate()}>
             {checkingUpdate ? '检查中...' : '检查更新'}
           </button>
         </div>
         {updateInfo?.ok && updateInfo.update_available && (
           <div className="mt-4 rounded-lg border border-sky-900/60 bg-sky-950/30 px-4 py-3">
-            <p className="text-sm text-sky-200">
-              发现新版本 {updateInfo.latest_version}
-              {updateInfo.release_notes ? `：${updateInfo.release_notes}` : ''}
-            </p>
+            <p className="text-sm text-sky-200">发现新版本 {updateInfo.latest_version}{updateInfo.release_notes ? `：${updateInfo.release_notes}` : ''}</p>
             {updateInfo.download_url && (
-              <button
-                type="button"
-                className="mt-3 rounded-lg bg-sky-600 px-3 py-1.5 text-sm hover:bg-sky-500"
-                onClick={() => void openExternalURL(updateInfo.download_url!)}
-              >
+              <button type="button" className="mt-3 rounded-lg bg-sky-600 px-3 py-1.5 text-sm hover:bg-sky-500" onClick={() => void openExternalURL(updateInfo.download_url!)}>
                 下载更新
               </button>
             )}
           </div>
         )}
-        {updateInfo?.ok && !updateInfo.update_available && (
-          <p className="mt-3 text-sm text-emerald-300">当前已是最新版本。</p>
-        )}
+        {updateInfo?.ok && !updateInfo.update_available && <p className="mt-3 text-sm text-emerald-300">当前已是最新版本。</p>}
       </section>
-
-
-
-      {status && (
-
-        <p className={`rounded-lg px-3 py-2 text-sm ${statusKind === 'error' ? 'bg-red-950/50 text-red-300' : statusKind === 'success' ? 'bg-emerald-950/40 text-emerald-300' : 'text-slate-400'}`}>
-
-          {status}
-
-        </p>
-
       )}
 
+      {status && (
+        <p className={`rounded-lg px-2 py-1 text-xs ${statusKind === 'error' ? 'bg-red-950/50 text-red-300' : statusKind === 'success' ? 'bg-emerald-950/40 text-emerald-300' : 'text-slate-400'}`}>
+          {status}
+        </p>
+      )}
 
-
-      <div className="flex justify-end">
+      <div className={`flex shrink-0 ${compact ? 'justify-stretch' : 'justify-end'}`}>
         {(() => {
-          const canSave = Boolean(state.server_url.trim());
+          const canSave = compact ? true : Boolean(state.server_url.trim());
           return (
             <button
               type="button"
               disabled={busy || !canSave}
-              className={
-                canSave
-                  ? 'btn-primary px-5'
-                  : 'rounded-lg bg-slate-700 px-5 py-2 text-sm font-semibold text-slate-400 cursor-not-allowed'
-              }
+              className={canSave ? `${compact ? 'w-full btn-primary py-1.5 text-sm' : 'btn-primary px-5'}` : 'rounded-lg bg-slate-700 px-5 py-2 text-sm font-semibold text-slate-400 cursor-not-allowed'}
               onClick={() => void handleSave()}
             >
-              {busy ? '保存中…' : '保存设置'}
+              {busy ? '保存中…' : '保存 Agent 设置'}
             </button>
           );
         })()}
       </div>
-
     </div>
-
   );
-
 }
 

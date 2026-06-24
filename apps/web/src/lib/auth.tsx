@@ -2,6 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { loadAgentState, hasAgentBridge } from './agent-bridge';
 import { applyBackendToRuntime, loadBackendConfig } from './backend-config';
 import {
+  loadPreferredApiBase,
+  loadPreferredToken,
+  savePreferredToken,
+  useBrowserLocalPrefs,
+} from './browser-prefs';
+import {
   clearControllerTokenBridge,
   hasControllerTokenBridge,
   loadControllerTokenFromBridge,
@@ -27,6 +33,12 @@ interface VerifyResult {
 }
 
 async function resolveControllerVerifyBase(): Promise<string> {
+  const browserBase = loadPreferredApiBase();
+  if (browserBase) return browserBase;
+
+  const runtimeBase = getRuntimeConfig().apiBase.replace(/\/$/, '');
+  if (runtimeBase) return runtimeBase;
+
   if (hasAgentBridge()) {
     try {
       const state = await loadAgentState();
@@ -36,9 +48,6 @@ async function resolveControllerVerifyBase(): Promise<string> {
       /* fall through */
     }
   }
-
-  const runtimeBase = getRuntimeConfig().apiBase.replace(/\/$/, '');
-  if (runtimeBase) return runtimeBase;
 
   return applyBackendToRuntime(loadBackendConfig());
 }
@@ -102,6 +111,10 @@ async function verifyControllerToken(token: string): Promise<VerifyResult> {
 }
 
 async function loadInitialToken(): Promise<string | null> {
+  if (useBrowserLocalPrefs()) {
+    return loadPreferredToken();
+  }
+
   if (hasControllerTokenBridge()) {
     const fromBridge = await loadControllerTokenFromBridge();
     if (fromBridge) {
@@ -114,6 +127,11 @@ async function loadInitialToken(): Promise<string | null> {
 
 async function persistToken(token: string | null): Promise<void> {
   const trimmed = token?.trim() ?? '';
+  if (useBrowserLocalPrefs()) {
+    savePreferredToken(trimmed || null);
+    return;
+  }
+
   if (hasControllerTokenBridge()) {
     if (trimmed) {
       await saveControllerTokenToBridge(trimmed);

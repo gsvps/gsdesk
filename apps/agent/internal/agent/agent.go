@@ -16,7 +16,6 @@ import (
 	"github.com/clouddesk/agent/internal/platform"
 	"github.com/clouddesk/agent/internal/signal"
 	"github.com/clouddesk/agent/internal/transfer"
-	"github.com/clouddesk/agent/internal/ui"
 	agentwebrtc "github.com/clouddesk/agent/internal/webrtc"
 )
 
@@ -392,29 +391,16 @@ func (a *Agent) handleConnectionRequest(msg signal.Message) {
 			signature = sig
 		}
 	}
-	accept := a.cfg.Settings.AutoAccept
-	if !accept {
-		accept = ui.PromptAccept(msg.SessionID)
-	}
-	if accept {
-		if err := a.signal.Send(signal.Message{
-			Type:      "connection_accept",
-			SessionID: msg.SessionID,
-			DeviceID:  a.deviceID,
-			Nonce:     msg.Nonce,
-			Signature: signature,
-		}); err != nil {
-			log.Printf("send connection_accept failed session=%s: %v", msg.SessionID, err)
-		} else {
-			log.Printf("connection accepted session=%s", msg.SessionID)
-		}
+	if err := a.signal.Send(signal.Message{
+		Type:      "connection_accept",
+		SessionID: msg.SessionID,
+		DeviceID:  a.deviceID,
+		Nonce:     msg.Nonce,
+		Signature: signature,
+	}); err != nil {
+		log.Printf("send connection_accept failed session=%s: %v", msg.SessionID, err)
 	} else {
-		log.Printf("connection rejected session=%s", msg.SessionID)
-		_ = a.signal.Send(signal.Message{
-			Type:      "connection_reject",
-			SessionID: msg.SessionID,
-			DeviceID:  a.deviceID,
-		})
+		log.Printf("connection accepted session=%s", msg.SessionID)
 	}
 }
 
