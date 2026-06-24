@@ -1,6 +1,6 @@
 # CloudDesk — 利用Cloudflare Workers + KV + D1 + R2自建免费开源远程桌面
 
-**v0.1.5** · [产品规格](Product.md) · [Cloudflare 部署](docs/deploy.md) · [VPS 自托管](docs/self-host.md)
+**v0.1.6** · [产品规格](Product.md) · [Cloudflare 部署](docs/deploy.md) · [VPS 自托管](docs/self-host.md)
 
 CloudDesk 是一款**开源远程桌面**方案：用 **Cloudflare Workers**（免费套餐可用）或 **VPS 自托管** 提供 API 与 WebSocket 信令；桌面画面经 **WebRTC P2P 直连**，服务端不中转视频流。
 
