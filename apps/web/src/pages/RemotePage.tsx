@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import FileTransferPanel from '../components/FileTransferPanel';
 import FileTransferStatusBar from '../components/FileTransferStatusBar';
 import MobileKeyboard from '../components/MobileKeyboard';
 import ReconnectDialog from '../components/ReconnectDialog';
-import TouchCursorOverlay from '../components/TouchCursorOverlay';
+import TouchCursorOverlay, { type TouchCursorOverlayHandle } from '../components/TouchCursorOverlay';
 import { apiFetch, prepareSessionReconnect, type SessionCreateResult } from '../lib/api';
 import {
   applyRemoteClipboard,
@@ -19,16 +19,29 @@ import {
   type QualityPreset,
 } from '../lib/remote-settings';
 import {
-  centerCursorPosition,
-  clampCursorPosition,
+  centerCursorInContent,
+  clampCursorInContent,
   computeContentBounds,
+  contentToRemote,
   pointerDistance,
-  surfaceToRemote,
   TOUCH_LONG_PRESS_MS,
   TOUCH_TAP_THRESHOLD_PX,
   type ContentBounds,
   type FitMode as TouchFitMode,
 } from '../lib/touch-mouse';
+import {
+  adjustViewScale,
+  normalizeViewTransform,
+  pinchMidpoint,
+  pinchDistance,
+  pinchViewTransform,
+  startPinchSession,
+  TWO_FINGER_TAP_MAX_MID_MOVE_PX,
+  TWO_FINGER_TAP_MAX_PINCH_RATIO,
+  VIEW_SCALE_STEP,
+  type PinchSession,
+  type ViewTransform,
+} from '../lib/touch-viewport';
 import type { FileTransferUiState } from '../lib/file-transfer-ui';
 import { downloadSessionFile, progressFromLoaded, sendFileToAgent } from '../lib/session-files';
 import { RemoteSession, type ScreenInfoMessage } from '../lib/webrtc';
@@ -80,6 +93,16 @@ export default function RemotePage() {
   const touchFingerLastRef = useRef({ x: 0, y: 0 });
   const touchLongPressTimerRef = useRef(0);
   const touchMouseDownRef = useRef(false);
+  const cursorOverlayRef = useRef<TouchCursorOverlayHandle>(null);
+  const touchPointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchSessionRef = useRef<PinchSession | null>(null);
+  const viewTransformRef = useRef<ViewTransform>({ scale: 1, panX: 0, panY: 0 });
+  const twoFingerGestureRef = useRef<{
+    mode: 'none' | 'tap-candidate' | 'pinch';
+    startDistance: number;
+    startMidX: number;
+    startMidY: number;
+  }>({ mode: 'none', startDistance: 0, startMidX: 0, startMidY: 0 });
   const [status, setStatus] = useState('正在建立连接...');
   const [error, setError] = useState('');
   const [useVideoTrack, setUseVideoTrack] = useState(false);
@@ -100,8 +123,9 @@ export default function RemotePage() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [reconnectPrompt, setReconnectPrompt] = useState<ReconnectPromptState | null>(null);
   const [reconnectDismissed, setReconnectDismissed] = useState(false);
-  const [touchCursor, setTouchCursor] = useState<{ x: number; y: number } | null>(null);
   const [touchPressing, setTouchPressing] = useState(false);
+  const [contentLayout, setContentLayout] = useState<ContentBounds | null>(null);
+  const [viewTransform, setViewTransform] = useState<ViewTransform>({ scale: 1, panX: 0, panY: 0 });
 
   useEffect(() => {
     reconnectPromptRef.current = reconnectPrompt;
@@ -514,6 +538,17 @@ export default function RemotePage() {
     }
   }
 
+  function applyViewTransform(scale: number, panX: number, panY: number) {
+    const next = normalizeViewTransform(scale, panX, panY);
+    viewTransformRef.current = next;
+    setViewTransform(next);
+  }
+
+  function refreshContentLayout() {
+    const layout = getTouchLayout();
+    setContentLayout(layout?.bounds ?? null);
+  }
+
   function getTouchLayout(): { bounds: ContentBounds; screenW: number; screenH: number } | null {
     const surface = surfaceRef.current;
     const canvas = canvasRef.current;
@@ -551,9 +586,8 @@ export default function RemotePage() {
     if (touchCursorRafRef.current) return;
     touchCursorRafRef.current = requestAnimationFrame(() => {
       touchCursorRafRef.current = 0;
-      if (touchCursorPosRef.current) {
-        setTouchCursor({ ...touchCursorPosRef.current });
-      }
+      const pos = touchCursorPosRef.current;
+      if (pos) cursorOverlayRef.current?.setPosition(pos.x, pos.y);
     });
   }
 
@@ -561,7 +595,14 @@ export default function RemotePage() {
     const layout = getTouchLayout();
     const pos = touchCursorPosRef.current;
     if (!layout || !pos) return null;
-    return surfaceToRemote(pos.x, pos.y, layout.bounds, layout.screenW, layout.screenH);
+    return contentToRemote(
+      pos.x,
+      pos.y,
+      layout.screenW,
+      layout.screenH,
+      layout.bounds.width,
+      layout.bounds.height
+    );
   }
 
   function sendRemoteMouseMoveAtCursor() {
@@ -576,7 +617,13 @@ export default function RemotePage() {
     const layout = getTouchLayout();
     const pos = touchCursorPosRef.current;
     if (!layout || !pos) return;
-    touchCursorPosRef.current = clampCursorPosition(pos.x + dx, pos.y + dy, layout.bounds);
+    const invScale = 1 / viewTransformRef.current.scale;
+    touchCursorPosRef.current = clampCursorInContent(
+      pos.x + dx * invScale,
+      pos.y + dy * invScale,
+      layout.bounds.width,
+      layout.bounds.height
+    );
     syncTouchCursorDisplay();
     const remote = remoteAtTouchCursor();
     if (!remote) return;
@@ -589,9 +636,9 @@ export default function RemotePage() {
   function initTouchCursor() {
     const layout = getTouchLayout();
     if (!layout) return;
-    const center = centerCursorPosition(layout.bounds);
+    const center = centerCursorInContent(layout.bounds.width, layout.bounds.height);
     touchCursorPosRef.current = center;
-    setTouchCursor(center);
+    cursorOverlayRef.current?.setPosition(center.x, center.y);
     sendRemoteMouseMoveAtCursor();
   }
 
@@ -602,27 +649,57 @@ export default function RemotePage() {
     }
   }
 
-  function sendTouchClick(remote: { x: number; y: number }) {
+  function sendTouchClick(
+    remote: { x: number; y: number },
+    button: 'left' | 'right' | 'middle' = 'left'
+  ) {
     sessionRef.current?.sendControl({
       type: 'mouse_click',
-      button: 'left',
+      button,
       action: 'down',
       x: remote.x,
       y: remote.y,
     });
     sessionRef.current?.sendControl({
       type: 'mouse_click',
-      button: 'left',
+      button,
       action: 'up',
       x: remote.x,
       y: remote.y,
     });
   }
 
+  function sendTouchRightClickAtCursor() {
+    const remote = sendRemoteMouseMoveAtCursor();
+    if (remote) sendTouchClick(remote, 'right');
+  }
+
+  function cancelSingleFingerGesture() {
+    clearTouchLongPressTimer();
+    touchGestureRef.current = 'idle';
+    touchMouseDownRef.current = false;
+    pointerActiveRef.current = false;
+    setTouchPressing(false);
+  }
+
+  function resetTwoFingerGesture() {
+    twoFingerGestureRef.current = { mode: 'none', startDistance: 0, startMidX: 0, startMidY: 0 };
+  }
+
+  useLayoutEffect(() => {
+    if (!isTouch) return;
+    refreshContentLayout();
+    const surface = surfaceRef.current;
+    if (!surface) return;
+    const observer = new ResizeObserver(() => refreshContentLayout());
+    observer.observe(surface);
+    return () => observer.disconnect();
+  }, [isTouch, fitMode, useVideoTrack, status, viewTransform]);
+
   useEffect(() => {
     if (!isTouch || !status.startsWith('已连接')) return;
     initTouchCursor();
-  }, [isTouch, status, fitMode, useVideoTrack]);
+  }, [isTouch, status, fitMode, useVideoTrack, contentLayout]);
 
   useEffect(() => {
     if (!isTouch) return;
@@ -705,22 +782,16 @@ export default function RemotePage() {
   }
 
   useEffect(() => {
+    if (isTouch) return;
+
     function onPointerMove(e: PointerEvent) {
       if (!pointerActiveRef.current) return;
-      if (isTouch) {
-        handleTouchPointerMoveByClient(e.clientX, e.clientY);
-      } else {
-        queueMouseMove(e.clientX, e.clientY);
-      }
+      queueMouseMove(e.clientX, e.clientY);
     }
 
     function onPointerUp() {
       pointerActiveRef.current = false;
-      if (isTouch) {
-        finishTouchPointer();
-      } else {
-        setTouchPressing(false);
-      }
+      setTouchPressing(false);
     }
 
     window.addEventListener('pointermove', onPointerMove);
@@ -734,11 +805,106 @@ export default function RemotePage() {
     };
   }, [isTouch]);
 
-  function sendMouseMove(e: React.PointerEvent<HTMLElement>) {
-    if (isTouch) {
-      handleTouchPointerMoveByClient(e.clientX, e.clientY);
+  function beginPinchIfNeeded() {
+    if (touchPointersRef.current.size < 2) return;
+    cancelSingleFingerGesture();
+    const pts = [...touchPointersRef.current.values()];
+    if (pts.length < 2) return;
+    const dist = pinchDistance(pts[0], pts[1]);
+    const mid = pinchMidpoint(pts[0], pts[1]);
+    twoFingerGestureRef.current = {
+      mode: 'tap-candidate',
+      startDistance: dist,
+      startMidX: mid.x,
+      startMidY: mid.y,
+    };
+    pinchSessionRef.current = startPinchSession(pts[0], pts[1], viewTransformRef.current);
+  }
+
+  function updatePinchGesture() {
+    if (touchPointersRef.current.size < 2) return;
+    const pts = [...touchPointersRef.current.values()];
+    if (pts.length < 2) return;
+
+    const dist = pinchDistance(pts[0], pts[1]);
+    const mid = pinchMidpoint(pts[0], pts[1]);
+    const gesture = twoFingerGestureRef.current;
+
+    if (gesture.mode === 'tap-candidate') {
+      const distRatio = Math.abs(dist - gesture.startDistance) / Math.max(gesture.startDistance, 1);
+      const midMove = Math.hypot(mid.x - gesture.startMidX, mid.y - gesture.startMidY);
+      if (distRatio > TWO_FINGER_TAP_MAX_PINCH_RATIO || midMove > TWO_FINGER_TAP_MAX_MID_MOVE_PX) {
+        gesture.mode = 'pinch';
+      }
+    }
+
+    if (gesture.mode === 'pinch' && pinchSessionRef.current) {
+      const next = pinchViewTransform(pinchSessionRef.current, pts[0], pts[1]);
+      applyViewTransform(next.scale, next.panX, next.panY);
+    }
+  }
+
+  function handleTouchSurfacePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    touchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (touchPointersRef.current.size >= 2) {
+      beginPinchIfNeeded();
       return;
     }
+    handleTouchPointerDown(e);
+  }
+
+  function handleTouchSurfacePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    touchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touchPointersRef.current.size >= 2) {
+      updatePinchGesture();
+      return;
+    }
+    if (pointerActiveRef.current) {
+      handleTouchPointerMoveByClient(e.clientX, e.clientY);
+    }
+  }
+
+  function handleTouchSurfacePointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    touchPointersRef.current.delete(e.pointerId);
+    if (touchPointersRef.current.size >= 2) {
+      beginPinchIfNeeded();
+      return;
+    }
+    if (touchPointersRef.current.size === 1) {
+      resetTwoFingerGesture();
+      pinchSessionRef.current = null;
+      const pt = [...touchPointersRef.current.values()][0]!;
+      touchFingerStartRef.current = pt;
+      touchFingerLastRef.current = pt;
+      touchGestureRef.current = 'idle';
+      pointerActiveRef.current = false;
+      setTouchPressing(false);
+      return;
+    }
+
+    if (twoFingerGestureRef.current.mode === 'tap-candidate') {
+      sendTouchRightClickAtCursor();
+      resetTwoFingerGesture();
+      pinchSessionRef.current = null;
+      cancelSingleFingerGesture();
+      return;
+    }
+
+    resetTwoFingerGesture();
+    pinchSessionRef.current = null;
+    pointerActiveRef.current = false;
+    finishTouchPointer();
+  }
+
+  const touchSurfaceHandlers = {
+    onPointerDown: handleTouchSurfacePointerDown,
+    onPointerMove: handleTouchSurfacePointerMove,
+    onPointerUp: handleTouchSurfacePointerUp,
+    onPointerCancel: handleTouchSurfacePointerUp,
+  };
+
+  function sendMouseMove(e: React.PointerEvent<HTMLElement>) {
     queueMouseMove(e.clientX, e.clientY);
   }
 
@@ -749,7 +915,6 @@ export default function RemotePage() {
     touchMouseDownRef.current = false;
     touchFingerStartRef.current = { x: e.clientX, y: e.clientY };
     touchFingerLastRef.current = { x: e.clientX, y: e.clientY };
-    e.currentTarget.setPointerCapture(e.pointerId);
 
     clearTouchLongPressTimer();
     touchLongPressTimerRef.current = window.setTimeout(() => {
@@ -796,10 +961,6 @@ export default function RemotePage() {
   }
 
   function sendMouseDown(e: React.PointerEvent<HTMLElement>) {
-    if (isTouch) {
-      handleTouchPointerDown(e);
-      return;
-    }
     pointerActiveRef.current = true;
     e.currentTarget.setPointerCapture(e.pointerId);
     const coords = mapCoordsFromClient(e.clientX, e.clientY);
@@ -817,11 +978,6 @@ export default function RemotePage() {
   }
 
   function sendMouseUp(e: React.PointerEvent<HTMLElement>) {
-    if (isTouch) {
-      pointerActiveRef.current = false;
-      finishTouchPointer();
-      return;
-    }
     pointerActiveRef.current = false;
     const coords = mapCoordsFromClient(e.clientX, e.clientY);
     if (!coords) return;
@@ -917,14 +1073,54 @@ export default function RemotePage() {
           </button>
 
           {isTouch && (
-            <button
-              type="button"
-              className={`${toolbarBtn} ${keyboardEnabled ? toolbarBtnActive : ''}`}
-              onClick={() => setKeyboardEnabled((v) => !v)}
-              title={keyboardEnabled ? '键盘已开启，输入会发送到远程' : '键盘已关闭'}
-            >
-              ⌨{keyboardEnabled ? '开' : '关'}
-            </button>
+            <>
+              <button
+                type="button"
+                className={toolbarBtn}
+                onClick={() => {
+                  const next = adjustViewScale(viewTransformRef.current, -VIEW_SCALE_STEP);
+                  applyViewTransform(next.scale, next.panX, next.panY);
+                }}
+                title="缩小画面"
+              >
+                －
+              </button>
+              <button
+                type="button"
+                className={`${toolbarBtn} min-w-[2.5rem] ${viewTransform.scale > 1 ? toolbarBtnActive : ''}`}
+                onClick={() => applyViewTransform(1, 0, 0)}
+                title="双指捏合可缩放；点击恢复原始大小"
+              >
+                {Math.round(viewTransform.scale * 100)}%
+              </button>
+              <button
+                type="button"
+                className={toolbarBtn}
+                onClick={() => {
+                  const next = adjustViewScale(viewTransformRef.current, VIEW_SCALE_STEP);
+                  applyViewTransform(next.scale, next.panX, next.panY);
+                }}
+                title="放大画面"
+              >
+                ＋
+              </button>
+              <button
+                type="button"
+                className={toolbarBtn}
+                onClick={() => sendTouchRightClickAtCursor()}
+                title="在当前鼠标位置发送右键（也可双指轻点）"
+              >
+                右键
+              </button>
+              <button
+                type="button"
+                className={`${toolbarBtn} ${keyboardEnabled ? toolbarBtnActive : ''}`}
+                onClick={() => setKeyboardEnabled((v) => !v)}
+                title={keyboardEnabled ? '键盘已开启，输入会发送到远程' : '键盘已关闭'}
+              >
+                ⌨{keyboardEnabled ? '开' : '关'}
+              </button>
+            </>
           )}
 
           <div className="relative">
@@ -981,6 +1177,7 @@ export default function RemotePage() {
           ref={surfaceRef}
           className="relative min-h-0 flex-1 overflow-hidden bg-black touch-none"
           {...dropHandlers}
+          {...(isTouch ? touchSurfaceHandlers : {})}
         >
           {isDraggingFiles && (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center border-2 border-dashed border-sky-400 bg-sky-950/50">
@@ -989,22 +1186,45 @@ export default function RemotePage() {
               </p>
             </div>
           )}
-          <video
-            ref={videoRef}
-            className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'block cursor-none' : 'hidden'}`}
-            autoPlay
-            playsInline
-            muted
-            {...(useVideoTrack ? pointerHandlers : {})}
-          />
-          <canvas
-            ref={canvasRef}
-            className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'hidden' : 'block cursor-none'}`}
-            {...(!useVideoTrack ? pointerHandlers : {})}
-          />
-          {isTouch && isConnected && (
-            <TouchCursorOverlay position={touchCursor} pressing={touchPressing} />
-          )}
+          <div
+            className="absolute inset-0"
+            style={
+              isTouch
+                ? {
+                    transform: `translate(${viewTransform.panX}px, ${viewTransform.panY}px) scale(${viewTransform.scale})`,
+                    transformOrigin: 'center center',
+                    willChange: 'transform',
+                  }
+                : undefined
+            }
+          >
+            <video
+              ref={videoRef}
+              className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'block cursor-none' : 'hidden'}`}
+              autoPlay
+              playsInline
+              muted
+              {...(useVideoTrack && !isTouch ? pointerHandlers : {})}
+            />
+            <canvas
+              ref={canvasRef}
+              className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'hidden' : 'block cursor-none'}`}
+              {...(!useVideoTrack && !isTouch ? pointerHandlers : {})}
+            />
+            {contentLayout && isTouch && isConnected && (
+              <div
+                className="pointer-events-none absolute overflow-hidden"
+                style={{
+                  left: contentLayout.x,
+                  top: contentLayout.y,
+                  width: contentLayout.width,
+                  height: contentLayout.height,
+                }}
+              >
+                <TouchCursorOverlay ref={cursorOverlayRef} pressing={touchPressing} />
+              </div>
+            )}
+          </div>
           {reconnectPrompt?.open && (
             <ReconnectDialog
               secondsLeft={reconnectPrompt.secondsLeft}

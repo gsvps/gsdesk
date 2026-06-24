@@ -42,56 +42,57 @@ export function computeContentBounds(
   };
 }
 
-export function clampCursorPosition(
+/** 光标坐标相对于远程画面区域（0,0 为画面左上角）。 */
+export function clampCursorInContent(
   x: number,
   y: number,
-  bounds: ContentBounds,
+  contentW: number,
+  contentH: number,
   hotspot: Point = CURSOR_HOTSPOT
 ): Point {
-  const minX = bounds.x - hotspot.x;
-  const maxX = bounds.x + bounds.width - hotspot.x;
-  const minY = bounds.y - hotspot.y;
-  const maxY = bounds.y + bounds.height - hotspot.y;
+  const minX = -hotspot.x;
+  const maxX = contentW - hotspot.x;
+  const minY = -hotspot.y;
+  const maxY = contentH - hotspot.y;
   return {
     x: Math.min(maxX, Math.max(minX, x)),
     y: Math.min(maxY, Math.max(minY, y)),
   };
 }
 
-export function centerCursorPosition(
-  bounds: ContentBounds,
+export function centerCursorInContent(
+  contentW: number,
+  contentH: number,
   hotspot: Point = CURSOR_HOTSPOT
 ): Point {
-  return clampCursorPosition(
-    bounds.x + bounds.width / 2 - hotspot.x,
-    bounds.y + bounds.height / 2 - hotspot.y,
-    bounds,
+  return clampCursorInContent(
+    contentW / 2 - hotspot.x,
+    contentH / 2 - hotspot.y,
+    contentW,
+    contentH,
     hotspot
   );
 }
 
-export function surfaceToRemote(
+export function contentToRemote(
   x: number,
   y: number,
-  bounds: ContentBounds,
   screenW: number,
   screenH: number,
+  contentW: number,
+  contentH: number,
   hotspot: Point = CURSOR_HOTSPOT
 ): Point | null {
-  if (bounds.width <= 0 || bounds.height <= 0) return null;
+  if (contentW <= 0 || contentH <= 0) return null;
   const tipX = x + hotspot.x;
   const tipY = y + hotspot.y;
-  const nx = (tipX - bounds.x) / bounds.width;
-  const ny = (tipY - bounds.y) / bounds.height;
-  if (nx < 0 || ny < 0 || nx > 1 || ny > 1) return null;
+  if (tipX < 0 || tipY < 0 || tipX > contentW || tipY > contentH) return null;
   return {
-    x: Math.round(nx * screenW),
-    y: Math.round(ny * screenH),
+    x: Math.round((tipX / contentW) * screenW),
+    y: Math.round((tipY / contentH) * screenH),
   };
 }
 
 export function pointerDistance(a: Point, b: Point): number {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return Math.hypot(dx, dy);
+  return Math.hypot(a.x - b.x, a.y - b.y);
 }
