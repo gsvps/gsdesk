@@ -18,6 +18,17 @@ import {
   QUALITY_OPTIONS,
   type QualityPreset,
 } from '../lib/remote-settings';
+import {
+  centerCursorPosition,
+  clampCursorPosition,
+  computeContentBounds,
+  pointerDistance,
+  surfaceToRemote,
+  TOUCH_LONG_PRESS_MS,
+  TOUCH_TAP_THRESHOLD_PX,
+  type ContentBounds,
+  type FitMode as TouchFitMode,
+} from '../lib/touch-mouse';
 import type { FileTransferUiState } from '../lib/file-transfer-ui';
 import { downloadSessionFile, progressFromLoaded, sendFileToAgent } from '../lib/session-files';
 import { RemoteSession, type ScreenInfoMessage } from '../lib/webrtc';
@@ -62,6 +73,13 @@ export default function RemotePage() {
   const reconnectBusyRef = useRef(false);
   const reconnectPromptRef = useRef<ReconnectPromptState | null>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
+  const touchCursorPosRef = useRef<{ x: number; y: number } | null>(null);
+  const touchCursorRafRef = useRef(0);
+  const touchGestureRef = useRef<'idle' | 'pending' | 'moving' | 'dragging'>('idle');
+  const touchFingerStartRef = useRef({ x: 0, y: 0 });
+  const touchFingerLastRef = useRef({ x: 0, y: 0 });
+  const touchLongPressTimerRef = useRef(0);
+  const touchMouseDownRef = useRef(false);
   const [status, setStatus] = useState('正在建立连接...');
   const [error, setError] = useState('');
   const [useVideoTrack, setUseVideoTrack] = useState(false);
@@ -496,16 +514,125 @@ export default function RemotePage() {
     }
   }
 
-  function updateTouchCursor(clientX: number, clientY: number) {
-    if (!isTouch) return;
+  function getTouchLayout(): { bounds: ContentBounds; screenW: number; screenH: number } | null {
     const surface = surfaceRef.current;
-    if (!surface) return;
-    const rect = surface.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    if (x < 0 || y < 0 || x > rect.width || y > rect.height) return;
-    setTouchCursor({ x, y });
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    if (!surface) return null;
+
+    let target: HTMLElement | null = null;
+    let screenW = screenSizeRef.current.width;
+    let screenH = screenSizeRef.current.height;
+
+    if (video && video.videoWidth > 0) {
+      target = video;
+      screenW = video.videoWidth;
+      screenH = video.videoHeight;
+    } else if (canvas) {
+      target = canvas;
+    } else if (video) {
+      target = video;
+    }
+
+    if (!target || screenW <= 0 || screenH <= 0) return null;
+
+    const bounds = computeContentBounds(
+      surface.getBoundingClientRect(),
+      target.getBoundingClientRect(),
+      screenW,
+      screenH,
+      fitModeRef.current as TouchFitMode
+    );
+    if (!bounds) return null;
+    return { bounds, screenW, screenH };
   }
+
+  function syncTouchCursorDisplay() {
+    if (touchCursorRafRef.current) return;
+    touchCursorRafRef.current = requestAnimationFrame(() => {
+      touchCursorRafRef.current = 0;
+      if (touchCursorPosRef.current) {
+        setTouchCursor({ ...touchCursorPosRef.current });
+      }
+    });
+  }
+
+  function remoteAtTouchCursor(): { x: number; y: number } | null {
+    const layout = getTouchLayout();
+    const pos = touchCursorPosRef.current;
+    if (!layout || !pos) return null;
+    return surfaceToRemote(pos.x, pos.y, layout.bounds, layout.screenW, layout.screenH);
+  }
+
+  function sendRemoteMouseMoveAtCursor() {
+    const remote = remoteAtTouchCursor();
+    if (!remote) return null;
+    pendingMoveRef.current = remote;
+    flushMouseMove();
+    return remote;
+  }
+
+  function moveTouchCursorByDelta(dx: number, dy: number) {
+    const layout = getTouchLayout();
+    const pos = touchCursorPosRef.current;
+    if (!layout || !pos) return;
+    touchCursorPosRef.current = clampCursorPosition(pos.x + dx, pos.y + dy, layout.bounds);
+    syncTouchCursorDisplay();
+    const remote = remoteAtTouchCursor();
+    if (!remote) return;
+    pendingMoveRef.current = remote;
+    if (!moveRafRef.current) {
+      moveRafRef.current = requestAnimationFrame(flushMouseMove);
+    }
+  }
+
+  function initTouchCursor() {
+    const layout = getTouchLayout();
+    if (!layout) return;
+    const center = centerCursorPosition(layout.bounds);
+    touchCursorPosRef.current = center;
+    setTouchCursor(center);
+    sendRemoteMouseMoveAtCursor();
+  }
+
+  function clearTouchLongPressTimer() {
+    if (touchLongPressTimerRef.current) {
+      window.clearTimeout(touchLongPressTimerRef.current);
+      touchLongPressTimerRef.current = 0;
+    }
+  }
+
+  function sendTouchClick(remote: { x: number; y: number }) {
+    sessionRef.current?.sendControl({
+      type: 'mouse_click',
+      button: 'left',
+      action: 'down',
+      x: remote.x,
+      y: remote.y,
+    });
+    sessionRef.current?.sendControl({
+      type: 'mouse_click',
+      button: 'left',
+      action: 'up',
+      x: remote.x,
+      y: remote.y,
+    });
+  }
+
+  useEffect(() => {
+    if (!isTouch || !status.startsWith('已连接')) return;
+    initTouchCursor();
+  }, [isTouch, status, fitMode, useVideoTrack]);
+
+  useEffect(() => {
+    if (!isTouch) return;
+    return () => {
+      clearTouchLongPressTimer();
+      if (touchCursorRafRef.current) {
+        cancelAnimationFrame(touchCursorRafRef.current);
+      }
+    };
+  }, [isTouch]);
 
   function mapCoordsFromClient(clientX: number, clientY: number) {
     const canvas = canvasRef.current;
@@ -554,7 +681,6 @@ export default function RemotePage() {
   }
 
   function queueMouseMove(clientX: number, clientY: number) {
-    updateTouchCursor(clientX, clientY);
     const coords = mapCoordsFromClient(clientX, clientY);
     if (!coords) return;
     pendingMoveRef.current = coords;
@@ -563,15 +689,38 @@ export default function RemotePage() {
     }
   }
 
+  function handleTouchPointerMoveByClient(clientX: number, clientY: number) {
+    const dx = clientX - touchFingerLastRef.current.x;
+    const dy = clientY - touchFingerLastRef.current.y;
+    touchFingerLastRef.current = { x: clientX, y: clientY };
+    if (dx === 0 && dy === 0) return;
+
+    const moved = pointerDistance(touchFingerStartRef.current, { x: clientX, y: clientY });
+    if (moved > TOUCH_TAP_THRESHOLD_PX && touchGestureRef.current === 'pending') {
+      clearTouchLongPressTimer();
+      touchGestureRef.current = 'moving';
+    }
+
+    moveTouchCursorByDelta(dx, dy);
+  }
+
   useEffect(() => {
     function onPointerMove(e: PointerEvent) {
       if (!pointerActiveRef.current) return;
-      queueMouseMove(e.clientX, e.clientY);
+      if (isTouch) {
+        handleTouchPointerMoveByClient(e.clientX, e.clientY);
+      } else {
+        queueMouseMove(e.clientX, e.clientY);
+      }
     }
 
     function onPointerUp() {
       pointerActiveRef.current = false;
-      setTouchPressing(false);
+      if (isTouch) {
+        finishTouchPointer();
+      } else {
+        setTouchPressing(false);
+      }
     }
 
     window.addEventListener('pointermove', onPointerMove);
@@ -583,16 +732,75 @@ export default function RemotePage() {
         cancelAnimationFrame(moveRafRef.current);
       }
     };
-  }, []);
+  }, [isTouch]);
 
   function sendMouseMove(e: React.PointerEvent<HTMLElement>) {
+    if (isTouch) {
+      handleTouchPointerMoveByClient(e.clientX, e.clientY);
+      return;
+    }
     queueMouseMove(e.clientX, e.clientY);
   }
 
-  function sendMouseDown(e: React.PointerEvent<HTMLElement>) {
+  function handleTouchPointerDown(e: React.PointerEvent<HTMLElement>) {
     pointerActiveRef.current = true;
     setTouchPressing(true);
-    updateTouchCursor(e.clientX, e.clientY);
+    touchGestureRef.current = 'pending';
+    touchMouseDownRef.current = false;
+    touchFingerStartRef.current = { x: e.clientX, y: e.clientY };
+    touchFingerLastRef.current = { x: e.clientX, y: e.clientY };
+    e.currentTarget.setPointerCapture(e.pointerId);
+
+    clearTouchLongPressTimer();
+    touchLongPressTimerRef.current = window.setTimeout(() => {
+      if (touchGestureRef.current !== 'pending') return;
+      const remote = sendRemoteMouseMoveAtCursor();
+      if (!remote) return;
+      touchGestureRef.current = 'dragging';
+      touchMouseDownRef.current = true;
+      sessionRef.current?.sendControl({
+        type: 'mouse_click',
+        button: 'left',
+        action: 'down',
+        x: remote.x,
+        y: remote.y,
+      });
+    }, TOUCH_LONG_PRESS_MS);
+  }
+
+  function finishTouchPointer() {
+    const gesture = touchGestureRef.current;
+    if (gesture === 'idle') return;
+
+    clearTouchLongPressTimer();
+    setTouchPressing(false);
+    touchGestureRef.current = 'idle';
+
+    const remote = sendRemoteMouseMoveAtCursor();
+    if (!remote) return;
+
+    const moved = pointerDistance(touchFingerStartRef.current, touchFingerLastRef.current);
+
+    if (gesture === 'pending' && moved < TOUCH_TAP_THRESHOLD_PX) {
+      sendTouchClick(remote);
+    } else if (gesture === 'dragging' && touchMouseDownRef.current) {
+      sessionRef.current?.sendControl({
+        type: 'mouse_click',
+        button: 'left',
+        action: 'up',
+        x: remote.x,
+        y: remote.y,
+      });
+      touchMouseDownRef.current = false;
+    }
+  }
+
+  function sendMouseDown(e: React.PointerEvent<HTMLElement>) {
+    if (isTouch) {
+      handleTouchPointerDown(e);
+      return;
+    }
+    pointerActiveRef.current = true;
     e.currentTarget.setPointerCapture(e.pointerId);
     const coords = mapCoordsFromClient(e.clientX, e.clientY);
     if (!coords) return;
@@ -609,8 +817,12 @@ export default function RemotePage() {
   }
 
   function sendMouseUp(e: React.PointerEvent<HTMLElement>) {
+    if (isTouch) {
+      pointerActiveRef.current = false;
+      finishTouchPointer();
+      return;
+    }
     pointerActiveRef.current = false;
-    setTouchPressing(false);
     const coords = mapCoordsFromClient(e.clientX, e.clientY);
     if (!coords) return;
     const button = e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left';

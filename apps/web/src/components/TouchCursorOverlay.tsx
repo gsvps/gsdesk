@@ -3,14 +3,14 @@ interface TouchCursorOverlayProps {
   pressing?: boolean;
 }
 
-/** 触摸控制时在画面上显示本地鼠标指示，便于定位点击位置。 */
+/** 触摸控制时在画面上显示虚拟鼠标（相对拖动，不跟随触点绝对位置）。 */
 export default function TouchCursorOverlay({ position, pressing }: TouchCursorOverlayProps) {
   if (!position) return null;
 
   return (
     <div
-      className="pointer-events-none absolute z-10"
-      style={{ left: position.x, top: position.y }}
+      className="pointer-events-none absolute left-0 top-0 z-10 will-change-transform"
+      style={{ transform: `translate3d(${position.x}px, ${position.y}px, 0)` }}
       aria-hidden
     >
       <svg
