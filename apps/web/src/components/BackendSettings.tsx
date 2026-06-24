@@ -27,7 +27,7 @@ export default function BackendSettings() {
           const apiBase = agent.server_url?.replace(/\/$/, '') || loaded.apiBase;
           const mode: BackendMode = apiBase.includes('127.0.0.1') || apiBase.includes('localhost') ? 'local' : 'cloudflare';
           setConfig({ mode: loaded.apiBase ? loaded.mode : mode, apiBase: apiBase || loaded.apiBase });
-          setRuntimeApiBase('');
+          setRuntimeApiBase(apiBase || loaded.apiBase);
         })
         .catch(() => {
           setRuntimeApiBase(applyBackendToRuntime(loaded));
@@ -75,7 +75,7 @@ export default function BackendSettings() {
           setStatus(sync.error || '同步 Agent 服务器地址失败');
           return;
         }
-        setRuntimeApiBase('');
+        setRuntimeApiBase(apiBase);
         setStatusKind('success');
         setStatus(`${test.message}。设置已保存，本机 Agent 正在后台连接，请稍后在主页点刷新。`);
         return;

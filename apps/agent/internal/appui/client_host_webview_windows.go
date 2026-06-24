@@ -105,9 +105,10 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 	}
 
 	w.Bind("getRuntimeConfig", func() string {
+		base := strings.TrimRight(strings.TrimSpace(cfg.ServerURL), "/")
 		return mustJSON(map[string]any{
 			"mode":     "desktop",
-			"apiBase":  "",
+			"apiBase":  base,
 			"deviceId": cfg.DeviceID,
 		})
 	})

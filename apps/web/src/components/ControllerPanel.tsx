@@ -72,12 +72,22 @@ export default function ControllerPanel() {
     return () => clearInterval(timer);
   }, [tokenVerified, authLoading]);
 
-  async function fetchRemoteDevice(id: string): Promise<DeviceInfo | null> {
-    if (!tokenVerified) return null;
+  async function fetchRemoteDevice(id: string): Promise<{ remote: DeviceInfo | null; error?: string }> {
+    if (!tokenVerified) {
+      return { remote: null, error: '请先在设置中配置并通过验证的控制器令牌' };
+    }
     try {
-      return await apiFetch<DeviceInfo>(`/api/device/${formatDeviceId(id)}`);
-    } catch {
-      return null;
+      const remote = await apiFetch<DeviceInfo>(`/api/device/${formatDeviceId(id)}`);
+      return { remote };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '查询设备失败';
+      if (message.includes('不存在')) {
+        return { remote: null, error: '设备不存在，请确认 8 位 ID 正确（非旧 dev_ 格式）' };
+      }
+      if (message.includes('无效') || message.includes('UNAUTHORIZED') || message.includes('请先配置')) {
+        return { remote: null, error: '控制器令牌无效，请到设置中重新保存' };
+      }
+      return { remote: null, error: message };
     }
   }
 
@@ -129,9 +139,9 @@ export default function ControllerPanel() {
     }
 
     setError('');
-    const remote = await fetchRemoteDevice(id);
+    const { remote, error: lookupError } = await fetchRemoteDevice(id);
     if (!remote) {
-      setError('设备不存在或令牌无效');
+      setError(lookupError ?? '设备不存在或令牌无效');
       return;
     }
     if (!remote.online) {

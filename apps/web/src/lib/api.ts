@@ -46,7 +46,12 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   }
 
   if (!body.success) {
-    throw new Error(body.error.message);
+    const code = body.error?.code ?? '';
+    const message = body.error?.message ?? '请求失败';
+    if (code === 'UNAUTHORIZED') {
+      throw new Error(message.includes('无效') ? message : '控制器令牌无效，请到设置中重新保存');
+    }
+    throw new Error(message);
   }
   return body.data;
 }

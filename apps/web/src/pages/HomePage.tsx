@@ -11,7 +11,7 @@ export default function HomePage() {
 
   if (!desktop) {
     return (
-      <DesktopLayout title="CloudDesk" subtitle="远程桌面控制端">
+      <DesktopLayout title="CloudDesk" subtitle="远程桌面控制端" actionTo="/settings" actionLabel="设置">
         <ControllerPanel />
       </DesktopLayout>
     );
