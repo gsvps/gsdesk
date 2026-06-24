@@ -10,7 +10,6 @@ not_found_handling = "single-page-application"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "clouddesk"
 migrations_dir = "migrations"
 
 [[kv_namespaces]]
@@ -18,7 +17,6 @@ binding = "KV"
 
 [[r2_buckets]]
 binding = "R2"
-bucket_name = "clouddesk-files"
 
 [[durable_objects.bindings]]
 name = "DEVICE_ROOM"
@@ -30,14 +28,6 @@ class_name = "SessionRoom"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["DeviceRoom", "SessionRoom"]
-
-[[migrations]]
-tag = "v2"
-deleted_classes = ["DeviceRoom", "SessionRoom"]
-
-[[migrations]]
-tag = "v3"
 new_sqlite_classes = ["DeviceRoom", "SessionRoom"]
 
 # 本地开发使用此 wrangler.toml；生产部署请使用仓库根目录 wrangler.toml
