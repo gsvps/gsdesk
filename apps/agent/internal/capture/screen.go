@@ -87,13 +87,18 @@ func (s *Screen) StartStreaming(opts StreamOptions) func() {
 				}
 
 				s.mu.Lock()
+				prevW, prevH := s.width, s.height
 				firstFrame := s.width == 0
+				sizeChanged := firstFrame || prevW != meta.Width || prevH != meta.Height
 				s.width = meta.Width
 				s.height = meta.Height
 				s.mu.Unlock()
 
 				if firstFrame && opts.OnReady != nil {
 					opts.OnReady(meta)
+				}
+				if sizeChanged && !firstFrame && opts.OnStreamResize != nil {
+					opts.OnStreamResize(meta)
 				}
 
 				if opts.VP8Frames != nil {

@@ -194,13 +194,15 @@ export default function RemotePage() {
   const drawFrame = useCallback((data: string, width: number, height: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const img = new Image();
     img.onload = () => {
-      canvas.width = width;
-      canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
     };
     img.src = `data:image/jpeg;base64,${data}`;
@@ -444,21 +446,17 @@ export default function RemotePage() {
     const video = videoRef.current;
 
     let target: HTMLElement | null = null;
-    let screenW = 0;
-    let screenH = 0;
+    let screenW = screenSizeRef.current.width;
+    let screenH = screenSizeRef.current.height;
 
-    if (canvas && canvas.width > 0) {
-      target = canvas;
-      screenW = canvas.width;
-      screenH = canvas.height;
-    } else if (video && video.videoWidth > 0) {
+    if (video && video.videoWidth > 0) {
       target = video;
       screenW = video.videoWidth;
       screenH = video.videoHeight;
-    } else {
-      target = canvas ?? video;
-      screenW = screenSizeRef.current.width;
-      screenH = screenSizeRef.current.height;
+    } else if (canvas) {
+      target = canvas;
+    } else if (video) {
+      target = video;
     }
 
     if (!target || screenW <= 0 || screenH <= 0) return null;

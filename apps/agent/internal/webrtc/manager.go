@@ -132,8 +132,20 @@ func (m *Manager) createSession(msg signal.Message) (*Session, error) {
 		session.mu.Unlock()
 
 		var vp8Cancel func()
+		publishScreenMeta := func(meta capture.ScreenMeta) {
+			desktopBounds := capture.PrimaryDisplayBounds()
+			input.SetScreenMapping(meta.Width, meta.Height, desktopBounds)
+			payload, _ := json.Marshal(map[string]any{
+				"type":           "screen_info",
+				"width":          meta.Width,
+				"height":         meta.Height,
+				"desktop_width":  desktopBounds.Dx(),
+				"desktop_height": desktopBounds.Dy(),
+			})
+			session.sendControl(payload)
+		}
 		session.streamCancel = screen.StartStreaming(capture.StreamOptions{
-			VP8Frames:   vp8Frames,
+			VP8Frames: vp8Frames,
 			SendControl: session.sendControl,
 			SendBinary: func(payload []byte) {
 				if !capture.VP8Available() {
@@ -141,16 +153,7 @@ func (m *Manager) createSession(msg signal.Message) (*Session, error) {
 				}
 			},
 			OnReady: func(meta capture.ScreenMeta) {
-				desktopBounds := capture.PrimaryDisplayBounds()
-				input.SetScreenMapping(meta.Width, meta.Height, desktopBounds)
-				payload, _ := json.Marshal(map[string]any{
-					"type":           "screen_info",
-					"width":          meta.Width,
-					"height":         meta.Height,
-					"desktop_width":  desktopBounds.Dx(),
-					"desktop_height": desktopBounds.Dy(),
-				})
-				session.sendControl(payload)
+				publishScreenMeta(meta)
 
 				if capture.VP8Available() && videoTrack != nil {
 					vp8Cancel = capture.StartVP8Pipeline(videoTrack, meta, vp8Frames, session.stop)
@@ -158,6 +161,7 @@ func (m *Manager) createSession(msg signal.Message) (*Session, error) {
 					log.Printf("session %s: VP8 unavailable, using JPEG DataChannel fallback", msg.SessionID)
 				}
 			},
+			OnStreamResize: publishScreenMeta,
 		})
 		session.vp8Cancel = func() {
 			if vp8Cancel != nil {
