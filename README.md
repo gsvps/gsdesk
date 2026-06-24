@@ -202,16 +202,19 @@ docker compose up -d
 
 **[下载 clouddesk-client.exe](https://github.com/gsvps/cloud-desk/raw/main/apps/agent/clouddesk-client.exe)**
 
+**Agent 界面使用系统默认浏览器**（`http://127.0.0.1:19527`），**不再需要安装 WebView2**。后台 Agent + 系统托盘仍由 exe 负责。
+
 ### 首次运行
 
 1. 双击下载的 `clouddesk-client.exe`（**不要**直接运行已安装目录里的旧版本）
-2. 若提示缺少 WebView2，程序会**自动下载安装**（约 1–3 分钟，需联网）
-3. **安装向导窗口会自动弹出**；若未看到，请检查任务栏是否有 CloudDesk 窗口，或再次双击 exe（会自动激活已有窗口）
-4. 选择安装目录（有 D 盘默认 `D:\CloudDesk`，否则为 `%USERPROFILE%\CloudDesk`），点击「安装」
-5. 安装完成后程序会**自动启动** `CloudDesk.exe`，并在设置页配置 Worker / VPS 地址
+2. **浏览器会自动打开**安装向导；若未弹出，请手动访问 `http://127.0.0.1:19527/install`
+3. 选择安装目录（有 D 盘默认 `D:\CloudDesk`，否则为 `%USERPROFILE%\CloudDesk`），点击「安装」
+4. 安装完成后程序会**自动启动** `CloudDesk.exe`；托盘图标可再次打开浏览器管理界面
+5. 在设置页配置 Worker / VPS 地址
 
 > **从网络下载的 exe 若双击无反应**：右键 exe → **属性** → 勾选「解除锁定 / Unblock」后重试。  
-> **已安装用户**：请使用桌面快捷方式或安装目录中的 `CloudDesk.exe`，不要反复运行下载目录里的 bootstrap exe。  
+> **已安装用户**：请使用桌面快捷方式或安装目录中的 `CloudDesk.exe`。  
+> **管理界面地址**：`http://127.0.0.1:19527`（仅本机可访问）  
 > 日志：安装前 `%USERPROFILE%\.clouddesk\agent.log`，安装后 `<安装目录>\logs\agent.log`。
 
 ### 自行编译

@@ -43,6 +43,11 @@ export async function initRuntimeConfig(): Promise<void> {
       return;
     }
 
+    if (typeof window !== 'undefined' && window.location.hostname === '127.0.0.1' && window.location.port === '19527') {
+      config = { mode: 'desktop', apiBase: '' };
+      return;
+    }
+
     config = {
       ...config,
       apiBase: applyBackendToRuntime(loadBackendConfig()),

@@ -1,4 +1,4 @@
-//go:build windows && cgo
+//go:build windows && uiwebview
 
 package appui
 
@@ -25,7 +25,7 @@ var (
 	installProgress install.Progress
 )
 
-type clientWindowOpts struct {
+type webviewClientWindowOpts struct {
 	hideUntilReady   bool
 	uiReadyTimeout   time.Duration
 	onInstallSuccess func(w webview.WebView, homeURL string, installDir string) error
@@ -40,13 +40,13 @@ func showClientWindow(cfg *config.Config, save SaveFunc, agent AgentView, tab st
 			return
 		}
 		windowMu.Unlock()
-		if err := runClientWindow(cfg, newAgentHolder(agent, save), tab, block, clientWindowOpts{hideUntilReady: false}); err != nil {
+		if err := runClientWindow(cfg, newAgentHolder(agent, save), tab, block, webviewClientWindowOpts{hideUntilReady: false}); err != nil {
 			showError(err.Error())
 		}
 	}()
 }
 
-func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block bool, opts clientWindowOpts) error {
+func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block bool, opts webviewClientWindowOpts) error {
 	windowMu.Lock()
 	if windowOpen {
 		windowMu.Unlock()
@@ -365,7 +365,7 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 
 func runBootstrapClient(cfg *config.Config, factory AgentFactory) error {
 	_ = factory
-	return runClientWindow(cfg, newAgentHolder(nil, nil), "install", true, clientWindowOpts{
+	return runClientWindow(cfg, newAgentHolder(nil, nil), "install", true, webviewClientWindowOpts{
 		hideUntilReady: false,
 		onInstallSuccess: func(w webview.WebView, homeURL string, installDir string) error {
 			installDir = strings.TrimSpace(installDir)
@@ -392,7 +392,7 @@ func runBootstrapClient(cfg *config.Config, factory AgentFactory) error {
 	})
 }
 
-func presentClientWindow(w webview.WebView, opts clientWindowOpts) {
+func presentClientWindow(w webview.WebView, opts webviewClientWindowOpts) {
 	if opts.hideUntilReady {
 		hideNativeWindow(w)
 		startUIReadyFallback(w, opts.uiReadyTimeout)

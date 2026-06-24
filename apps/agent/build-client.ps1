@@ -1,4 +1,4 @@
-# Build unified CloudDesk client (controller + host, WebView2 native window)
+# Build CloudDesk client — browser UI (no WebView2 required)
 $ErrorActionPreference = "Stop"
 $AgentDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = Resolve-Path (Join-Path $AgentDir "..\..")
@@ -20,7 +20,7 @@ if (-not $gcc) {
     }
 }
 if (-not $gcc) {
-    Write-Host "GCC (MinGW) not found. Install MSYS2 and add mingw64/bin to PATH." -ForegroundColor Red
+    Write-Host "GCC (MinGW) not found. Install MSYS2 and add mingw64/bin to PATH (needed for system tray)." -ForegroundColor Red
     exit 1
 }
 
@@ -44,4 +44,5 @@ if (-not (Test-Path $rsrc)) {
 $env:CGO_ENABLED = "1"
 go build -ldflags "-H windowsgui" -o clouddesk-client.exe .
 Write-Host "Built: $AgentDir\clouddesk-client.exe" -ForegroundColor Green
-Write-Host "First run: install wizard (default D:\CloudDesk)" -ForegroundColor Cyan
+Write-Host "UI: system browser at http://127.0.0.1:19527 (no WebView2 install)" -ForegroundColor Cyan
+Write-Host "First run: install wizard opens in your default browser" -ForegroundColor Cyan
