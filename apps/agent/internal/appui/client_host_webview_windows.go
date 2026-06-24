@@ -79,6 +79,8 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 		startURL += "install"
 	}
 
+	EnsureWebViewEnvironment()
+
 	w := webview.New(false)
 	defer w.Destroy()
 	w.SetTitle("CloudDesk")
@@ -108,6 +110,17 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 			"apiBase":  "",
 			"deviceId": cfg.DeviceID,
 		})
+	})
+
+	w.Bind("getControllerTokenGo", func() string {
+		return mustJSON(map[string]any{
+			"ok":    true,
+			"token": getControllerToken(cfg),
+		})
+	})
+
+	w.Bind("saveControllerTokenGo", func(token string) string {
+		return mustJSON(saveControllerToken(cfg, token))
 	})
 
 	w.Bind("notifyUIReadyGo", func() string {
@@ -329,10 +342,9 @@ func runBootstrapClient(cfg *config.Config, factory AgentFactory) error {
 			holder.set(agent, save)
 
 			if av := holder.view(); av != nil {
-				for i := 0; i < 40 && !av.IsOnline(); i++ {
-					time.Sleep(100 * time.Millisecond)
-				}
-				_ = av.RefreshOTP()
+				go func() {
+					_ = av.RefreshOTP()
+				}()
 			}
 
 			if !trayStarted {

@@ -11,9 +11,11 @@ import (
 )
 
 func runPlatform(a *agent.Agent) {
-	if err := a.ConnectIfEnabled(); err != nil {
-		log.Printf("agent connect: %v", err)
-	}
+	go func() {
+		if err := a.ConnectIfEnabled(); err != nil {
+			log.Printf("agent connect: %v", err)
+		}
+	}()
 
 	log.Printf("CloudDesk Client running, device=%s", a.DeviceID())
 	cfg := a.Config()

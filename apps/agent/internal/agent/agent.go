@@ -55,7 +55,7 @@ func New(cfg *config.Config) (*Agent, error) {
 		cfg.DeviceID = ""
 		cfg.DeviceToken = ""
 		if err := a.register(); err != nil {
-			return nil, err
+			log.Printf("device register failed (will retry on connect): %v", err)
 		}
 	}
 
@@ -90,6 +90,7 @@ func (a *Agent) ApplyConfig(next *config.Config) error {
 		return fmt.Errorf("config is nil")
 	}
 	wasEnabled := a.cfg.Settings.AgentEnabledOn()
+	oldServerURL := a.cfg.ServerURL
 	next.Settings = next.Settings.Normalized()
 	a.cfg.ServerURL = next.ServerURL
 	a.cfg.DeviceName = next.DeviceName
@@ -102,16 +103,24 @@ func (a *Agent) ApplyConfig(next *config.Config) error {
 		return err
 	}
 	nowEnabled := next.Settings.AgentEnabledOn()
+	serverChanged := oldServerURL != next.ServerURL
 	if wasEnabled && !nowEnabled {
 		a.signal.Close()
 		log.Printf("host service disabled")
-	} else if !wasEnabled && nowEnabled {
+	} else if nowEnabled && (!wasEnabled || serverChanged) {
+		if a.signal != nil {
+			a.signal.Close()
+		}
+		a.transfer = transfer.NewHandler(a.cfg.ServerURL, a.cfg.DeviceToken, a.cfg.DeviceID, func() string {
+			return a.cfg.Settings.DownloadDirectory()
+		})
 		a.signal = signal.New(a.cfg.ServerURL, a.cfg.DeviceID, a.cfg.DeviceToken, a.handleSignal)
 		a.webrtc = agentwebrtc.NewManager(a.signal, a.handleControl, a.clipboardEnabled)
 		if err := a.signal.Connect(); err != nil {
-			return err
+			log.Printf("agent reconnect after config change: %v", err)
+		} else {
+			log.Printf("host service enabled")
 		}
-		log.Printf("host service enabled")
 	}
 	return nil
 }
@@ -210,6 +219,20 @@ func (a *Agent) Run() error {
 func (a *Agent) ConnectIfEnabled() error {
 	if a.cfg == nil || !a.cfg.Settings.AgentEnabledOn() {
 		return nil
+	}
+	if a.deviceID == "" || a.cfg.DeviceToken == "" {
+		if err := a.register(); err != nil {
+			return err
+		}
+		a.deviceID = a.cfg.DeviceID
+		if a.signal != nil {
+			a.signal.Close()
+		}
+		a.transfer = transfer.NewHandler(a.cfg.ServerURL, a.cfg.DeviceToken, a.cfg.DeviceID, func() string {
+			return a.cfg.Settings.DownloadDirectory()
+		})
+		a.signal = signal.New(a.cfg.ServerURL, a.cfg.DeviceID, a.cfg.DeviceToken, a.handleSignal)
+		a.webrtc = agentwebrtc.NewManager(a.signal, a.handleControl, a.clipboardEnabled)
 	}
 	if a.signal == nil {
 		a.signal = signal.New(a.cfg.ServerURL, a.cfg.DeviceID, a.cfg.DeviceToken, a.handleSignal)

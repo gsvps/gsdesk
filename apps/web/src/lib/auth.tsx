@@ -1,4 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  clearControllerTokenBridge,
+  hasControllerTokenBridge,
+  loadControllerTokenFromBridge,
+  saveControllerTokenToBridge,
+} from './controller-token-bridge';
 import { apiFetch, getStoredToken, setStoredToken } from './api';
 
 interface AuthContextValue {
@@ -10,6 +16,15 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function isNetworkError(message: string): boolean {
+  return (
+    message.includes('无法连接服务器') ||
+    message.includes('Failed to fetch') ||
+    message.includes('NetworkError') ||
+    message.includes('服务器响应异常')
+  );
+}
+
 async function verifyStoredToken(): Promise<boolean> {
   try {
     await apiFetch<{ verified: boolean }>('/api/controller/verify');
@@ -17,6 +32,29 @@ async function verifyStoredToken(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function loadInitialToken(): Promise<string | null> {
+  if (hasControllerTokenBridge()) {
+    const fromBridge = await loadControllerTokenFromBridge();
+    if (fromBridge) {
+      setStoredToken(fromBridge);
+      return fromBridge;
+    }
+  }
+  return getStoredToken()?.trim() || null;
+}
+
+async function persistToken(token: string | null): Promise<void> {
+  const trimmed = token?.trim() ?? '';
+  if (hasControllerTokenBridge()) {
+    if (trimmed) {
+      await saveControllerTokenToBridge(trimmed);
+    } else {
+      await clearControllerTokenBridge();
+    }
+  }
+  setStoredToken(trimmed || null);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -28,7 +66,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     async function bootstrap() {
-      const stored = getStoredToken()?.trim();
+      let stored: string | null = null;
+      try {
+        stored = await loadInitialToken();
+      } catch {
+        stored = getStoredToken()?.trim() || null;
+      }
+
       if (!stored) {
         if (!cancelled) {
           setTokenState(null);
@@ -38,15 +82,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      if (!cancelled) {
+        setTokenState(stored);
+      }
+
       const ok = await verifyStoredToken();
       if (cancelled) return;
 
       if (ok) {
-        setTokenState(stored);
         setTokenVerified(true);
       } else {
-        setStoredToken(null);
-        setTokenState(null);
         setTokenVerified(false);
       }
       setLoading(false);
@@ -61,23 +106,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setToken = useCallback(async (next: string | null) => {
     const trimmed = next?.trim() ?? '';
     if (!trimmed) {
-      setStoredToken(null);
+      await persistToken(null);
       setTokenState(null);
       setTokenVerified(false);
       return;
     }
 
-    setStoredToken(trimmed);
+    await persistToken(trimmed);
     setTokenState(trimmed);
 
-    const ok = await verifyStoredToken();
-    if (!ok) {
-      setStoredToken(null);
+    try {
+      const ok = await verifyStoredToken();
+      if (!ok) {
+        setTokenVerified(false);
+        throw new Error('控制器令牌无效，请确认与 Worker 的 CONTROLLER_JWT_SECRET 一致');
+      }
+      setTokenVerified(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '令牌验证失败';
+      if (isNetworkError(message)) {
+        setTokenVerified(false);
+        throw new Error('令牌已保存，但暂时无法连接服务器验证，请检查 Agent 服务器地址');
+      }
+      await persistToken(null);
       setTokenState(null);
       setTokenVerified(false);
-      throw new Error('控制器令牌无效');
+      throw err instanceof Error ? err : new Error(message);
     }
-    setTokenVerified(true);
   }, []);
 
   const value = useMemo<AuthContextValue>(

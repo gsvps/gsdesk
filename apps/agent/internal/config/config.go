@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	ServerURL    string        `json:"server_url"`
-	PairingToken string        `json:"pairing_token,omitempty"`
+	ServerURL       string        `json:"server_url"`
+	ControllerToken string        `json:"controller_token,omitempty"`
+	PairingToken    string        `json:"pairing_token,omitempty"`
 	DeviceName   string        `json:"device_name,omitempty"`
 	Hostname     string        `json:"hostname,omitempty"`
 	OS           string        `json:"os,omitempty"`

@@ -18,6 +18,7 @@ func main() {
 
 	logsetup.Init()
 	platform.EnableDPIAwareness()
+	appui.EnsureWebViewEnvironment()
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("load config: %v", err)
@@ -55,7 +56,7 @@ func main() {
 	a, err := agent.New(cfg)
 	if err != nil {
 		log.Printf("init agent: %v", err)
-		appui.ShowError("启动失败: " + err.Error() + "\n\n请确认 Worker 已启动，并查看 logs/agent.log")
+		appui.ShowError("启动失败: " + err.Error() + "\n\n请查看 logs/agent.log")
 		return
 	}
 
