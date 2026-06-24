@@ -81,7 +81,7 @@ func buildUIState(cfg *config.Config, agent AgentView) uiState {
 		DefaultQuality:   settings.DefaultQuality,
 		ClipboardEnabled: settings.ClipboardEnabled(),
 		DownloadDir:      settings.DownloadDirectory(),
-		AutoAccept:       settings.AutoAccept,
+		AutoAccept:       settings.AutoAcceptOn(),
 		LaunchAtStartup:  settings.LaunchAtStartup,
 		StartMinimized:   settings.StartMinimized,
 		AgentEnabled:            settings.AgentEnabledOn(),
@@ -106,9 +106,10 @@ func applySave(cfg *config.Config, save SaveFunc, agent AgentView, payload saveP
 	if downloadDir == config.DefaultDownloadDirectory() {
 		downloadDir = ""
 	}
+	autoAccept := payload.AutoAccept
 	next.Settings = config.AgentSettings{
 		DefaultQuality:        normalizeQuality(payload.DefaultQuality),
-		AutoAccept:            payload.AutoAccept,
+		AutoAccept:            &autoAccept,
 		ClipboardSync:         &clip,
 		LaunchAtStartup:       payload.LaunchAtStartup,
 		StartMinimized:        payload.StartMinimized,
@@ -242,6 +243,6 @@ func normalizeQuality(q string) string {
 	case "low", "medium", "high", "ultra":
 		return q
 	default:
-		return "ultra"
+		return "high"
 	}
 }

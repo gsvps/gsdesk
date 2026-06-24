@@ -9,7 +9,7 @@ import (
 // AgentSettings are user preferences persisted in config.json.
 type AgentSettings struct {
 	DefaultQuality   string `json:"default_quality,omitempty"` // low | medium | high | ultra
-	AutoAccept       bool   `json:"auto_accept,omitempty"`
+	AutoAccept       *bool  `json:"auto_accept,omitempty"`
 	ClipboardSync    *bool  `json:"clipboard_sync,omitempty"` // nil = enabled
 	LaunchAtStartup  bool   `json:"launch_at_startup,omitempty"`
 	StartMinimized   bool   `json:"start_minimized,omitempty"`
@@ -43,6 +43,13 @@ func (s AgentSettings) CloseToTrayOn() bool {
 	return *s.CloseToTray
 }
 
+func (s AgentSettings) AutoAcceptOn() bool {
+	if s.AutoAccept == nil {
+		return true
+	}
+	return *s.AutoAccept
+}
+
 func (s AgentSettings) ClipboardEnabled() bool {
 	if s.ClipboardSync == nil {
 		return true
@@ -71,9 +78,10 @@ func DefaultAgentSettings() AgentSettings {
 	agentOn := true
 	otpIdle := 5
 	closeTray := false
+	autoAccept := true
 	return AgentSettings{
-		DefaultQuality:          "ultra",
-		AutoAccept:              true,
+		DefaultQuality:          "high",
+		AutoAccept:              &autoAccept,
 		ClipboardSync:           &enabled,
 		AgentEnabled:            &agentOn,
 		OTPIdleRefreshMinutes:   &otpIdle,
@@ -84,7 +92,7 @@ func DefaultAgentSettings() AgentSettings {
 func (s AgentSettings) Normalized() AgentSettings {
 	out := s
 	if out.DefaultQuality == "" {
-		out.DefaultQuality = "ultra"
+		out.DefaultQuality = "high"
 	}
 	if out.ClipboardSync == nil {
 		enabled := true

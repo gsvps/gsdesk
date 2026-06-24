@@ -17,7 +17,6 @@ import {
   type QualityPreset,
 } from '../lib/remote-settings';
 import { downloadSessionFile, sendFileToAgent } from '../lib/session-files';
-import { isNativeFullscreen, setNativeFullscreen, supportsNativeFullscreen } from '../lib/window-bridge';
 import { RemoteSession, type ScreenInfoMessage } from '../lib/webrtc';
 
 type FitMode = 'contain' | 'cover';
@@ -68,7 +67,7 @@ export default function RemotePage() {
   });
   const [quality, setQuality] = useState<QualityPreset>(() => {
     const saved = sessionStorage.getItem('clouddesk:quality');
-    return saved === 'low' || saved === 'medium' || saved === 'high' || saved === 'ultra' ? saved : 'ultra';
+    return saved === 'low' || saved === 'medium' || saved === 'high' || saved === 'ultra' ? saved : 'high';
   });
   const [keyboardEnabled, setKeyboardEnabled] = useState(false);
   const [showFilePanel, setShowFilePanel] = useState(false);
@@ -180,10 +179,6 @@ export default function RemotePage() {
   }, []);
 
   useEffect(() => {
-    if (supportsNativeFullscreen()) {
-      void isNativeFullscreen().then(setIsFullscreen);
-      return;
-    }
     function onFullscreenChange() {
       setIsFullscreen(Boolean(document.fullscreenElement));
     }
@@ -322,7 +317,11 @@ export default function RemotePage() {
         onFileReady: (msg) => {
           if (aborted || !sessionId) return;
           setFileStatus(`远程文件就绪：${msg.filename}`);
-          downloadSessionFile(sessionId, msg.file_id, msg.filename);
+          void downloadSessionFile(sessionId, msg.file_id, msg.filename).catch((err) => {
+            if (!aborted) {
+              setFileStatus(err instanceof Error ? err.message : '下载失败');
+            }
+          });
         },
         onFileAgentDone: (msg) => {
           if (!aborted) setFileStatus(`已保存到远程：${msg.path ?? msg.filename}`);
@@ -381,17 +380,17 @@ export default function RemotePage() {
   }, [isTouch, sendKeyPress]);
 
   async function toggleFullscreen() {
-    if (supportsNativeFullscreen()) {
-      const next = !(await isNativeFullscreen());
-      const active = await setNativeFullscreen(next);
-      setIsFullscreen(active);
-      return;
+    const target = viewportRef.current ?? document.documentElement;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await target.requestFullscreen();
+      }
+    } catch {
+      /* browser may block without user gesture */
     }
-    if (document.fullscreenElement) {
-      await document.exitFullscreen().catch(() => undefined);
-      return;
-    }
-    await viewportRef.current?.requestFullscreen().catch(() => undefined);
+    setIsFullscreen(Boolean(document.fullscreenElement));
   }
 
   async function handleFileDrop(e: React.DragEvent<HTMLElement>) {
@@ -673,6 +672,8 @@ export default function RemotePage() {
             {showFilePanel && sessionId && (
               <FileTransferPanel
                 sessionId={sessionId}
+                status={fileStatus}
+                onStatusChange={setFileStatus}
                 onSendControl={(payload) => sessionRef.current?.sendControl(payload)}
                 onClose={() => setShowFilePanel(false)}
               />

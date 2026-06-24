@@ -77,6 +77,54 @@ export async function verifyDeviceAccess(
   return ok ? { ok: true } : { ok: false, reason: 'invalid' };
 }
 
+/** 自动识别 OTP（6 位数字）或永久密码。 */
+export async function verifyDeviceAccessAuto(
+  env: Env,
+  deviceId: string,
+  password: string,
+  accessPasswordHash: string | null
+): Promise<{
+  ok: boolean;
+  matchedType?: AccessPasswordType;
+  reason?: string;
+  rateLimited?: boolean;
+  retryAfterSec?: number;
+}> {
+  const trimmed = password.trim();
+  if (!trimmed) {
+    return { ok: false, reason: 'empty' };
+  }
+
+  const hasPermanent = Boolean(accessPasswordHash);
+  const hasOtp = await otpActive(env, deviceId);
+  const looksLikeOtp = /^\d{6}$/.test(trimmed);
+
+  if (looksLikeOtp && hasOtp) {
+    const otp = await verifyDeviceAccess(env, deviceId, trimmed, 'otp', accessPasswordHash);
+    if (otp.ok) return { ...otp, matchedType: 'otp' };
+    if (otp.rateLimited) return otp;
+  }
+
+  if (hasPermanent) {
+    const permanent = await verifyDeviceAccess(env, deviceId, trimmed, 'permanent', accessPasswordHash);
+    if (permanent.ok) return { ...permanent, matchedType: 'permanent' };
+    if (permanent.rateLimited) return permanent;
+    if (looksLikeOtp && hasOtp) {
+      return { ok: false, reason: 'invalid' };
+    }
+    return permanent;
+  }
+
+  if (hasOtp) {
+    if (!looksLikeOtp) {
+      return { ok: false, reason: 'otp_format' };
+    }
+    return { ok: false, reason: 'invalid' };
+  }
+
+  return { ok: false, reason: 'permanent_unavailable' };
+}
+
 export async function deviceAccessProtected(
   env: Env,
   deviceId: string,

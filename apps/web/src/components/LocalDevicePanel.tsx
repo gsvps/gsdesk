@@ -193,7 +193,6 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
       const result = await saveAgentSettings(
         agentStateToSavePayload(fresh, {
           permanent_password: pwd,
-          launch_at_startup: false,
           start_minimized: false,
           close_to_tray: false,
         })
@@ -231,13 +230,13 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
       clipboard_enabled: next.clipboard_enabled,
       download_dir: next.download_dir,
       auto_accept: next.auto_accept,
-      launch_at_startup: false,
-      start_minimized: false,
+      launch_at_startup: next.launch_at_startup,
+      start_minimized: next.start_minimized,
       permanent_password: '',
       clear_permanent_password: false,
       agent_enabled: next.agent_enabled,
       otp_idle_refresh_minutes: next.otp_idle_refresh_minutes,
-      close_to_tray: false,
+      close_to_tray: next.close_to_tray,
     };
     const result = await saveAgentSettings(payload);
     if (!result.ok) throw new Error(result.error || '保存失败');
@@ -501,6 +500,36 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
           {status}
         </p>
       )}
+
+      <nav
+        className={`mt-auto space-y-1.5 border-t border-slate-800 text-xs ${compact ? 'pt-3' : 'pt-4'}`}
+        aria-label="相关链接"
+      >
+        <a
+          href="https://www.gsvps.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-slate-400 transition hover:text-sky-300"
+        >
+          我的官网
+        </a>
+        <a
+          href="https://t.me/gsvpscom"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-slate-400 transition hover:text-sky-300"
+        >
+          交流群
+        </a>
+        <a
+          href="https://github.com/gsvps/cloud-desk"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-slate-400 transition hover:text-sky-300"
+        >
+          GitHub 仓库
+        </a>
+      </nav>
     </section>
   );
 }

@@ -383,7 +383,7 @@ func (a *Agent) handleConnectionRequest(msg signal.Message) {
 	log.Printf("connection request session=%s", msg.SessionID)
 	a.webrtc.CloseSession(msg.SessionID)
 
-	if a.cfg != nil && !a.cfg.Settings.AutoAccept {
+	if a.cfg != nil && !a.cfg.Settings.AutoAcceptOn() {
 		if !ui.PromptAccept(msg.SessionID) {
 			if err := a.signal.Send(signal.Message{
 				Type:      "connection_reject",

@@ -4,7 +4,7 @@ import App from './App';
 import './index.css';
 import { installAgentHttpBridge, isAgentLocalServer } from './lib/bridge-http';
 import { migrateBrowserPrefsFromAgent } from './lib/browser-prefs';
-import { initRuntimeConfig, isDesktopClient } from './lib/runtime-config';
+import { initRuntimeConfig, isDesktopClient, webAppBasename } from './lib/runtime-config';
 import { notifyUIReady } from './lib/window-bridge';
 
 async function bootstrap() {
@@ -15,8 +15,9 @@ async function bootstrap() {
   if (isAgentLocalServer()) {
     await migrateBrowserPrefsFromAgent();
   }
+  const basename = webAppBasename();
   createRoot(document.getElementById('root')!).render(
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <App />
     </BrowserRouter>
   );

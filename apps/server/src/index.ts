@@ -9,6 +9,7 @@ import { LocalR2Bucket } from './adapters/r2-local.js';
 import { applyMigrations, openDatabase } from './migrate.js';
 import { attachWebSocketServer, nodeFetch } from './http.js';
 import { RoomRegistry } from './rooms/registry.js';
+import { tryServeWebApp, normalizeWebAppPath, webAppEntryPath } from './web-app-static.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,6 +36,7 @@ function createRuntime() {
     CLIENT_LATEST_VERSION: process.env.CLIENT_LATEST_VERSION ?? '0.1.0',
     CLIENT_DOWNLOAD_URL: process.env.CLIENT_DOWNLOAD_URL,
     CLIENT_RELEASE_NOTES: process.env.CLIENT_RELEASE_NOTES,
+    WEB_APP_PATH: process.env.WEB_APP_PATH ?? '/app',
   };
 
   const env = {
@@ -50,6 +52,8 @@ function createRuntime() {
   return { env, registry };
 }
 
+const WEB_DIST = path.resolve(__dirname, '../../web/dist');
+
 const { env, registry } = createRuntime();
 const app = createCoreApp();
 
@@ -61,6 +65,26 @@ const server = createServer((req, res) => {
   if (req.url?.startsWith('/ws/')) {
     return;
   }
+
+  const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+  const webAppPrefix = normalizeWebAppPath(env.WEB_APP_PATH);
+  if (url.pathname === webAppPrefix) {
+    res.writeHead(302, { Location: `${webAppPrefix}/` });
+    res.end();
+    return;
+  }
+  const staticResponse = tryServeWebApp(url.pathname, WEB_DIST, env.WEB_APP_PATH);
+  if (staticResponse) {
+    res.statusCode = staticResponse.status;
+    staticResponse.headers.forEach((value, key) => {
+      res.setHeader(key, value);
+    });
+    void staticResponse.arrayBuffer().then((buf) => {
+      res.end(Buffer.from(buf));
+    });
+    return;
+  }
+
   nodeFetch(req, res, (request) => app.fetch(request, env), env);
 });
 
@@ -69,5 +93,5 @@ attachWebSocketServer(server, env, registry);
 server.listen(PORT, () => {
   console.log(`CloudDesk self-hosted server listening on http://0.0.0.0:${PORT}`);
   console.log(`Data directory: ${DATA_DIR}`);
-  console.log('Backend kind: self_hosted (API only, open clouddesk-client.exe for UI)');
+  console.log(`Mobile/web control entry: http://0.0.0.0:${PORT}${webAppEntryPath(env.WEB_APP_PATH)}`);
 });

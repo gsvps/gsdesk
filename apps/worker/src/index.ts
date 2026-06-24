@@ -1,4 +1,5 @@
 import { createCoreApp } from './app';
+import { normalizeWebAppPath, serveWebApp, webAppRedirect } from './lib/web-app';
 
 const app = createCoreApp();
 
@@ -16,7 +17,23 @@ app.get('/ws/session/:sessionId', async (c) => {
   return stub.fetch(c.req.raw);
 });
 
-app.all('*', (c) => c.text('success'));
+app.all('*', async (c) => {
+  const pathname = new URL(c.req.url).pathname;
+  const prefix = normalizeWebAppPath(c.env.WEB_APP_PATH);
+  const method = c.req.method;
+
+  if ((method === 'GET' || method === 'HEAD') && (pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    if (pathname === prefix) {
+      return webAppRedirect(c, prefix);
+    }
+    if (!c.env.ASSETS) {
+      return c.text('Web control UI not deployed. Run npm run build:web:app before deploy.', 503);
+    }
+    return serveWebApp(c, c.env.ASSETS, prefix);
+  }
+
+  return c.text('success');
+});
 
 export { createCoreApp } from './app';
 export { DeviceRoom } from './durable-objects/device-room';

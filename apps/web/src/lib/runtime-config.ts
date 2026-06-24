@@ -30,6 +30,21 @@ export function isDesktopClient(): boolean {
   return config.mode === 'desktop';
 }
 
+export function webAppBasename(): string {
+  const base = import.meta.env.BASE_URL;
+  if (base && base !== '/') {
+    return base.replace(/\/+$/, '');
+  }
+  return '/';
+}
+
+export function isHostedWebApp(): boolean {
+  const base = webAppBasename();
+  if (base === '/') return false;
+  const { pathname } = window.location;
+  return pathname === base || pathname.startsWith(`${base}/`);
+}
+
 export async function initRuntimeConfig(): Promise<void> {
   if (initPromise) return initPromise;
   initPromise = (async () => {
@@ -44,6 +59,11 @@ export async function initRuntimeConfig(): Promise<void> {
         apiBase: browserBase || (parsed.apiBase ?? '').replace(/\/$/, ''),
         deviceId: parsed.deviceId,
       };
+      return;
+    }
+
+    if (isHostedWebApp()) {
+      config = { mode: 'browser', apiBase: '' };
       return;
     }
 

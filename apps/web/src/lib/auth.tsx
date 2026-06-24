@@ -14,7 +14,7 @@ import {
   saveControllerTokenToBridge,
 } from './controller-token-bridge';
 import { getStoredToken, setStoredToken } from './api';
-import { getRuntimeConfig } from './runtime-config';
+import { getRuntimeConfig, isHostedWebApp } from './runtime-config';
 
 interface AuthContextValue {
   token: string | null;
@@ -33,6 +33,10 @@ interface VerifyResult {
 }
 
 async function resolveControllerVerifyBase(): Promise<string> {
+  if (isHostedWebApp()) {
+    return window.location.origin.replace(/\/$/, '');
+  }
+
   const browserBase = loadPreferredApiBase();
   if (browserBase) return browserBase;
 

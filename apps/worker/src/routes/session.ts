@@ -4,7 +4,7 @@ import type { Env } from '../env';
 import { createDb } from '../db';
 import { devices, sessions } from '../db/schema';
 import { writeAuditLog } from '../lib/audit';
-import { deviceAccessProtected, verifyDeviceAccess, type AccessPasswordType } from '../lib/device-access';
+import { deviceAccessProtected, verifyDeviceAccessAuto } from '../lib/device-access';
 import { generateId } from '../lib/crypto';
 import { rateLimitResponse } from '../lib/rate-limit';
 import { getClientIp, jsonFail, jsonOk } from '../lib/response';
@@ -43,10 +43,8 @@ session.post('/create', async (c) => {
   const body = await c.req.json<{
     device_id?: string;
     password?: string;
-    password_type?: AccessPasswordType;
   }>();
   const deviceId = body.device_id?.trim();
-  const passwordType: AccessPasswordType = body.password_type === 'otp' ? 'otp' : 'permanent';
 
   if (!deviceId) {
     return jsonFail(c, 'BAD_REQUEST', '缺少 device_id');
@@ -62,18 +60,13 @@ session.post('/create', async (c) => {
     return jsonFail(c, 'DEVICE_OFFLINE', '设备当前离线', 409);
   }
 
+  let matchedAccessType: 'permanent' | 'otp' | undefined;
   const protectedAccess = await deviceAccessProtected(c.env, deviceId, device.accessPasswordHash);
   if (protectedAccess) {
     if (!body.password?.trim()) {
       return jsonFail(c, 'ACCESS_PASSWORD_REQUIRED', '该设备需要输入访问密码', 401);
     }
-    const check = await verifyDeviceAccess(
-      c.env,
-      deviceId,
-      body.password,
-      passwordType,
-      device.accessPasswordHash
-    );
+    const check = await verifyDeviceAccessAuto(c.env, deviceId, body.password, device.accessPasswordHash);
     if (!check.ok) {
       if (check.rateLimited) {
         const rl = rateLimitResponse(check.retryAfterSec ?? 60);
@@ -82,11 +75,15 @@ session.post('/create', async (c) => {
       if (check.reason === 'otp_unavailable') {
         return jsonFail(c, 'OTP_UNAVAILABLE', '当前没有有效的一次性密码', 401);
       }
+      if (check.reason === 'otp_format') {
+        return jsonFail(c, 'OTP_FORMAT', '该设备仅支持 6 位一次性密码', 401);
+      }
       if (check.reason === 'permanent_unavailable') {
         return jsonFail(c, 'PERMANENT_PASSWORD_UNAVAILABLE', '该设备未设置永久密码', 401);
       }
       return jsonFail(c, 'ACCESS_PASSWORD_INVALID', '密码错误', 401);
     }
+    matchedAccessType = check.matchedType;
   }
 
   const sessionId = generateId('sess');
@@ -137,6 +134,7 @@ session.post('/create', async (c) => {
     signal_path: signalPath,
     ws_token: wsToken,
     nonce,
+    access_type: matchedAccessType,
   });
 });
 

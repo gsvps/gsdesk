@@ -3,24 +3,31 @@ import { sendFileToAgent } from '../lib/session-files';
 
 interface FileTransferPanelProps {
   sessionId: string;
+  status: string;
+  onStatusChange: (status: string) => void;
   onSendControl: (payload: Record<string, unknown>) => void;
   onClose: () => void;
 }
 
-export default function FileTransferPanel({ sessionId, onSendControl, onClose }: FileTransferPanelProps) {
+export default function FileTransferPanel({
+  sessionId,
+  status,
+  onStatusChange,
+  onSendControl,
+  onClose,
+}: FileTransferPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [remotePath, setRemotePath] = useState('C:\\Users\\Public\\');
-  const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function uploadToRemote(file: File) {
     setBusy(true);
-    setStatus(`正在上传 ${file.name}...`);
+    onStatusChange(`正在上传 ${file.name}...`);
     try {
       const result = await sendFileToAgent(sessionId, file, onSendControl);
-      setStatus(`已发送到远程：${result.filename}`);
+      onStatusChange(`已发送到远程：${result.filename}`);
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : '上传失败');
+      onStatusChange(err instanceof Error ? err.message : '上传失败');
     } finally {
       setBusy(false);
     }
@@ -29,10 +36,10 @@ export default function FileTransferPanel({ sessionId, onSendControl, onClose }:
   function requestFromRemote() {
     const path = remotePath.trim();
     if (!path) {
-      setStatus('请输入远程文件路径');
+      onStatusChange('请输入远程文件路径');
       return;
     }
-    setStatus('正在请求远程文件...');
+    onStatusChange('正在请求远程文件...');
     onSendControl({ type: 'file_from_agent', path });
   }
 

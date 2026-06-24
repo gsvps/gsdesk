@@ -16,7 +16,6 @@ import { CONFIG_UPDATED_EVENT } from '../lib/browser-prefs';
 import {
   setRememberedPassword,
   shouldShowPasswordModal,
-  type AccessPasswordType,
 } from '../lib/device-password';
 
 interface ListedDevice extends LocalDevice {
@@ -111,12 +110,7 @@ export default function ControllerPanel({ compact = false }: { compact?: boolean
     }
   }
 
-  async function startSession(
-    deviceId: string,
-    remote?: DeviceInfo,
-    pwd?: string,
-    passwordType?: AccessPasswordType
-  ) {
+  async function startSession(deviceId: string, remote?: DeviceInfo, pwd?: string) {
     if (!tokenVerified) {
       setError('请先在左侧配置并通过验证的控制器令牌');
       return;
@@ -126,8 +120,11 @@ export default function ControllerPanel({ compact = false }: { compact?: boolean
     try {
       const session = await apiFetch<SessionCreateResult>('/api/session/create', {
         method: 'POST',
-        body: JSON.stringify({ device_id: deviceId, password: pwd, password_type: passwordType }),
+        body: JSON.stringify({ device_id: deviceId, password: pwd }),
       });
+      if (session.access_type === 'permanent' && pwd) {
+        setRememberedPassword(deviceId, pwd);
+      }
       const displayName = remote?.device_name?.trim() || deviceId;
       const next = addLocalDevice(deviceId, displayName);
       setDevices(next);
@@ -348,13 +345,11 @@ export default function ControllerPanel({ compact = false }: { compact?: boolean
             setPasswordDevice(null);
             setPasswordError('');
           }}
-          onSubmit={async (pwd, type, remember) => {
+          onSubmit={async (pwd) => {
             if (!passwordDevice) return;
             setPasswordError('');
             try {
-              await startSession(passwordDevice.id, passwordDevice, pwd, type);
-              if (type === 'permanent' && remember) setRememberedPassword(passwordDevice.id, pwd);
-              else if (type === 'permanent') setRememberedPassword(passwordDevice.id, null);
+              await startSession(passwordDevice.id, passwordDevice, pwd);
             } catch {
               /* modal shows error */
             }

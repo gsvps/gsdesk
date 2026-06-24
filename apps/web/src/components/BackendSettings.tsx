@@ -23,12 +23,13 @@ import { useAuth } from '../lib/auth';
 import { loadPreferredApiBase, notifyConfigUpdated, savePreferredApiBase } from '../lib/browser-prefs';
 import { isAgentLocalServer } from '../lib/bridge-http';
 import { QUALITY_OPTIONS, type QualityPreset } from '../lib/remote-settings';
-import { isDesktopClient, setRuntimeApiBase } from '../lib/runtime-config';
+import { fetchWebAppEntry, joinWebAppUrl } from '../lib/web-app-entry';
+import { isDesktopClient, isHostedWebApp, setRuntimeApiBase } from '../lib/runtime-config';
 import { useDebouncedEffect } from '../lib/use-debounce';
 
 function normalizeDefaultQuality(value: string | undefined): QualityPreset {
   if (value === 'low' || value === 'medium' || value === 'high' || value === 'ultra') return value;
-  return 'ultra';
+  return 'high';
 }
 
 export default function BackendSettings({ compact = false }: { compact?: boolean }) {
@@ -49,6 +50,7 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
   const [agentStatusKind, setAgentStatusKind] = useState<'success' | 'error' | ''>('');
   const [agentBusy, setAgentBusy] = useState(false);
   const agentLoaded = useRef(false);
+  const [webAppEntry, setWebAppEntry] = useState('/app/');
 
   useEffect(() => {
     const loaded = loadBackendConfig();
@@ -81,6 +83,16 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
   useEffect(() => {
     setTokenValue(token ?? '');
   }, [token]);
+
+  useEffect(() => {
+    if (isHostedWebApp()) return;
+    const base = config.apiBase.trim();
+    if (!base) {
+      setWebAppEntry('/app/');
+      return;
+    }
+    void fetchWebAppEntry(base).then(setWebAppEntry);
+  }, [config.apiBase]);
 
   function updateMode(mode: BackendMode) {
     setConfig((prev) => ({
@@ -161,9 +173,9 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
           auto_accept: agentState.auto_accept,
           clipboard_enabled: agentState.clipboard_enabled,
           download_dir: agentState.download_dir,
-          launch_at_startup: false,
-          start_minimized: false,
-          close_to_tray: false,
+          launch_at_startup: agentState.launch_at_startup,
+          start_minimized: agentState.start_minimized,
+          close_to_tray: agentState.close_to_tray,
         })
       );
       if (!result.ok) {
@@ -199,6 +211,7 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
       agentState?.default_quality,
       agentState?.otp_idle_refresh_minutes,
       agentState?.auto_accept,
+      agentState?.launch_at_startup,
       agentState?.clipboard_enabled,
       agentState?.download_dir,
     ],
@@ -225,8 +238,29 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
       className={`rounded-xl border border-slate-700 bg-slate-900/60 ${compact ? 'flex h-full flex-col overflow-y-auto p-3' : 'p-5'}`}
     >
       <h4 className={`font-medium text-slate-200 ${compact ? 'text-sm' : ''}`}>设置</h4>
-      {!compact && <p className="mt-1 text-sm text-slate-400">填写后自动保存。WebRTC 画面仍为 P2P 直连。</p>}
+      {isHostedWebApp() ? (
+        <p className="mt-1 text-xs text-emerald-300">手机/浏览器安全控制入口 · 已使用当前站点 API</p>
+      ) : (
+        <>
+          {!compact && <p className="mt-1 text-sm text-slate-400">填写后自动保存。WebRTC 画面仍为 P2P 直连。</p>}
+          {config.apiBase.trim() && (
+            <p className={`text-xs text-slate-400 ${compact ? 'mt-1' : 'mt-2'}`}>
+              手机浏览器控制：
+              <a
+                className="ml-1 text-sky-300 hover:underline"
+                href={joinWebAppUrl(config.apiBase, webAppEntry)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {joinWebAppUrl(config.apiBase, webAppEntry)}
+              </a>
+            </p>
+          )}
+        </>
+      )}
 
+      {!isHostedWebApp() && (
+        <>
       <div className={`flex flex-wrap gap-2 ${compact ? 'mt-2' : 'mt-3'}`}>
         {(Object.keys(BACKEND_MODE_LABEL) as BackendMode[]).map((mode) => (
           <button
@@ -257,6 +291,8 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
       </label>
       {status && (
         <p className={`mt-1 text-xs ${statusKind === 'error' ? 'text-red-400' : 'text-emerald-300'}`}>{status}</p>
+      )}
+        </>
       )}
 
       <label className={`block text-sm text-slate-400 ${compact ? 'mt-2' : 'mt-3'}`}>
@@ -347,6 +383,11 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
               checked={agentState.auto_accept}
               onChange={(v) => setAgentState({ ...agentState, auto_accept: v })}
               label="自动接受远程连接"
+            />
+            <Switch
+              checked={agentState.launch_at_startup}
+              onChange={(v) => setAgentState({ ...agentState, launch_at_startup: v })}
+              label="开机自启动"
             />
             <Switch
               checked={agentState.clipboard_enabled}

@@ -12,6 +12,7 @@ import { latestClientVersion } from './lib/client-release';
 import { ensureDatabaseReady, getLastBootstrapError } from './lib/db-bootstrap';
 import { createSessionWsToken } from './lib/session-ws';
 import { jsonFail, jsonOk } from './lib/response';
+import { webAppEntryPath } from './lib/web-app';
 
 /** Shared HTTP API routes for Cloudflare Worker and VPS self-host server. */
 export function createCoreApp() {
@@ -19,11 +20,13 @@ export function createCoreApp() {
 
   app.use('*', async (c, next) => {
     const origin = c.req.header('Origin') ?? '';
+    const requestOrigin = new URL(c.req.url).origin;
     const allowed =
       origin.startsWith('http://127.0.0.1:') ||
       origin.startsWith('http://localhost:') ||
       origin.startsWith('https://127.0.0.1:') ||
       origin.startsWith('https://localhost:') ||
+      (origin && origin === requestOrigin) ||
       (c.env.ALLOWED_ORIGIN && origin === c.env.ALLOWED_ORIGIN);
 
     if (allowed && origin) {
@@ -52,6 +55,7 @@ export function createCoreApp() {
       db_ready: dbReady,
       db_error: dbReady ? undefined : bootstrapError,
       security_warning: weakSecret ? '请设置强随机 CONTROLLER_JWT_SECRET（≥24 字符）' : undefined,
+      web_app_entry: webAppEntryPath(c.env.WEB_APP_PATH),
     });
   });
 

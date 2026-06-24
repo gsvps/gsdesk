@@ -1,5 +1,3 @@
-import { isDesktopClient } from './runtime-config';
-
 declare global {
   interface Window {
     notifyUIReadyGo?: () => Promise<string> | string;
@@ -41,5 +39,5 @@ export async function isNativeFullscreen(): Promise<boolean> {
 }
 
 export function supportsNativeFullscreen(): boolean {
-  return isDesktopClient() && typeof window.setWindowFullscreenGo === 'function';
+  return false;
 }

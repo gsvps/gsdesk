@@ -87,6 +87,7 @@ export interface SessionCreateResult {
   signal_path?: string;
   ws_token: string;
   nonce: string;
+  access_type?: 'permanent' | 'otp';
 }
 
 export interface SessionReconnectResult {
