@@ -5,7 +5,6 @@ package appui
 import (
 	"sync"
 	"syscall"
-	"time"
 	"unsafe"
 
 	"github.com/clouddesk/agent/internal/config"
@@ -105,16 +104,7 @@ func quitActiveClientWindow() {
 	if w == nil {
 		return
 	}
-
-	done := make(chan struct{}, 1)
 	w.Dispatch(func() {
 		terminateClientWindow(w)
-		done <- struct{}{}
 	})
-
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		terminateClientWindow(w)
-	}
 }

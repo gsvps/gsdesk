@@ -58,14 +58,14 @@ func onReady(opts Options) {
 				}
 			case <-mainItem.ClickedCh:
 				if opts.OnOpenMain != nil {
-					opts.OnOpenMain()
+					go opts.OnOpenMain()
 				}
 			case <-settingsItem.ClickedCh:
 				if opts.OnSettings != nil {
-					opts.OnSettings()
+					go opts.OnSettings()
 				}
 			case <-quitItem.ClickedCh:
-				systray.Quit()
+				go systray.Quit()
 				return
 			}
 		}

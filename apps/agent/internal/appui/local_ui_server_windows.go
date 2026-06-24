@@ -58,8 +58,14 @@ func shutdownUIServer() {
 }
 
 // QuitApplication closes the UI window, stops background services, and exits the process.
+// Must not block the systray thread (Windows message loop).
 func QuitApplication(closeAgent func()) {
+	go exitApplication(closeAgent)
+}
+
+func exitApplication(closeAgent func()) {
 	quitActiveClientWindow()
+	time.Sleep(300 * time.Millisecond)
 	shutdownUIServer()
 	if closeAgent != nil {
 		closeAgent()
