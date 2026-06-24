@@ -17,6 +17,11 @@ export function isWebAppPath(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
+function fetchAsset(assets: Fetcher, assetPath: string, method: string, origin: string): Promise<Response> {
+  const assetUrl = new URL(assetPath, origin);
+  return assets.fetch(new Request(assetUrl.toString(), { method }));
+}
+
 /** 将 {prefix}/... 映射到 ASSETS 上的静态文件路径，SPA 路由回退 index.html。 */
 export async function serveWebApp(c: Context, assets: Fetcher, prefix: string): Promise<Response> {
   const url = new URL(c.req.url);
@@ -28,18 +33,16 @@ export async function serveWebApp(c: Context, assets: Fetcher, prefix: string): 
     assetPath += 'index.html';
   }
 
-  const assetUrl = new URL(assetPath, url.origin);
-  const response = await assets.fetch(new Request(assetUrl.toString(), c.req.raw));
+  const response = await fetchAsset(assets, assetPath, c.req.method, url.origin);
 
   if (response.status !== 404 || assetPath.includes('.')) {
     return response;
   }
 
-  return assets.fetch(new Request(new URL('/index.html', url.origin).toString(), c.req.raw));
+  return fetchAsset(assets, '/index.html', c.req.method, url.origin);
 }
 
-export function webAppRedirect(c: Context, prefix: string): Response {
-  const url = new URL(c.req.url);
-  url.pathname = `${prefix}/`;
-  return c.redirect(url.toString(), 302);
+/** 兼容 base=/ 构建产物：页面在 /app/ 下但脚本引用 /assets/*。 */
+export async function serveRootAsset(c: Context, assets: Fetcher, pathname: string): Promise<Response> {
+  return fetchAsset(assets, pathname, c.req.method, new URL(c.req.url).origin);
 }

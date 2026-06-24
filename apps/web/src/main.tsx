@@ -8,6 +8,7 @@ import { initRuntimeConfig, isDesktopClient, webAppBasename } from './lib/runtim
 import { notifyUIReady } from './lib/window-bridge';
 
 async function bootstrap() {
+  const basename = webAppBasename();
   if (isAgentLocalServer()) {
     installAgentHttpBridge();
   }
@@ -15,7 +16,6 @@ async function bootstrap() {
   if (isAgentLocalServer()) {
     await migrateBrowserPrefsFromAgent();
   }
-  const basename = webAppBasename();
   createRoot(document.getElementById('root')!).render(
     <BrowserRouter basename={basename}>
       <App />

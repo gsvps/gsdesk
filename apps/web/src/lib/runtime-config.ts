@@ -12,6 +12,7 @@ export interface RuntimeConfig {
 declare global {
   interface Window {
     getRuntimeConfig?: () => Promise<string> | string;
+    __CLOUDDESK_WEB_BASENAME__?: string;
   }
 }
 
@@ -30,27 +31,70 @@ export function isDesktopClient(): boolean {
   return config.mode === 'desktop';
 }
 
-export function webAppBasename(): string {
-  const raw = import.meta.env.BASE_URL ?? '/';
-  if (!raw || raw === '/' || raw === './' || raw === '.') {
-    const detected = detectHostedPathFromLocation();
-    if (detected) return detected;
-    return '/';
+function normalizeBasename(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim().replace(/\/+$/, '');
+  if (!trimmed || trimmed === '.' || trimmed === './') return null;
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+
+function detectBasenameFromBaseTag(): string | null {
+  if (typeof document === 'undefined') return null;
+  const href = document.querySelector('base[href]')?.getAttribute('href');
+  if (!href) return null;
+  try {
+    return normalizeBasename(new URL(href, window.location.origin).pathname);
+  } catch {
+    return null;
   }
-  return raw.replace(/\/+$/, '') || '/';
+}
+
+function detectBasenameFromScriptTag(): string | null {
+  if (typeof document === 'undefined') return null;
+  const src = document.querySelector('script[type="module"][src]')?.getAttribute('src') ?? '';
+  const match = src.match(/^(\/[^/]+)\/assets\//);
+  return normalizeBasename(match?.[1]);
 }
 
 /** 从当前 URL 推断托管路径（deploy 时未按 /app base 构建时的兜底） */
 function detectHostedPathFromLocation(): string | null {
   if (typeof window === 'undefined') return null;
   const pathname = window.location.pathname;
-  // 与 wrangler WEB_APP_PATH 默认一致；常见托管入口
-  for (const prefix of ['/app']) {
+  const candidates = [
+    window.__CLOUDDESK_WEB_BASENAME__,
+    detectBasenameFromBaseTag(),
+    detectBasenameFromScriptTag(),
+    '/app',
+  ];
+  for (const raw of candidates) {
+    const prefix = normalizeBasename(raw);
+    if (!prefix) continue;
     if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
       return prefix;
     }
   }
   return null;
+}
+
+export function webAppBasename(): string {
+  const injected = normalizeBasename(
+    typeof window !== 'undefined' ? window.__CLOUDDESK_WEB_BASENAME__ : undefined
+  );
+  if (injected) return injected;
+
+  const fromBaseTag = detectBasenameFromBaseTag();
+  if (fromBaseTag) return fromBaseTag;
+
+  const fromScript = detectBasenameFromScriptTag();
+  if (fromScript) return fromScript;
+
+  const raw = import.meta.env.BASE_URL ?? '/';
+  if (!raw || raw === '/' || raw === './' || raw === '.') {
+    const detected = detectHostedPathFromLocation();
+    if (detected) return detected;
+    return '/';
+  }
+  return normalizeBasename(raw) ?? '/';
 }
 
 export function isHostedWebApp(): boolean {

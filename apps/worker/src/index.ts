@@ -1,5 +1,5 @@
 import { createCoreApp } from './app';
-import { normalizeWebAppPath, serveWebApp, webAppRedirect } from './lib/web-app';
+import { normalizeWebAppPath, serveRootAsset, serveWebApp } from './lib/web-app';
 
 const app = createCoreApp();
 
@@ -23,13 +23,14 @@ app.all('*', async (c) => {
   const method = c.req.method;
 
   if ((method === 'GET' || method === 'HEAD') && (pathname === prefix || pathname.startsWith(`${prefix}/`))) {
-    if (pathname === prefix) {
-      return webAppRedirect(c, prefix);
-    }
     if (!c.env.ASSETS) {
       return c.text('Web control UI not deployed. Run npm run build:web:app before deploy.', 503);
     }
     return serveWebApp(c, c.env.ASSETS, prefix);
+  }
+
+  if ((method === 'GET' || method === 'HEAD') && pathname.startsWith('/assets/') && c.env.ASSETS) {
+    return serveRootAsset(c, c.env.ASSETS, pathname);
   }
 
   return c.text('success');

@@ -30,3 +30,17 @@ execSync(`npm run build -w @clouddesk/web -- --base ${base}`, {
   stdio: 'inherit',
   env: { ...process.env, CLOUDDESK_WEB_APP_PATH: webAppPath },
 });
+
+const indexPath = path.join(root, 'apps/web/dist/index.html');
+if (fs.existsSync(indexPath)) {
+  let html = fs.readFileSync(indexPath, 'utf8');
+  const inject = [
+    `    <base href="${base}" />`,
+    `    <script>window.__CLOUDDESK_WEB_BASENAME__="${webAppPath}"</script>`,
+  ].join('\n');
+  if (!html.includes('__CLOUDDESK_WEB_BASENAME__')) {
+    html = html.replace(/(<meta name="viewport"[^>]*>)/, `$1\n${inject}`);
+    fs.writeFileSync(indexPath, html);
+    console.log(`Injected web app basename ${webAppPath} into index.html`);
+  }
+}
