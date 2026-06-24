@@ -1,0 +1,19 @@
+services:
+  clouddesk:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    ports:
+      - "8787:8787"
+    environment:
+      PORT: "8787"
+      CLOUDDESK_DATA: /data
+      CLOUDDESK_WEB_ROOT: /app/web
+      CONTROLLER_JWT_SECRET: ${CONTROLLER_JWT_SECRET:-clouddesk-dev-controller-secret-change-me}
+      SKIP_SIGNATURE_VERIFY: ${SKIP_SIGNATURE_VERIFY:-true}
+    volumes:
+      - clouddesk-data:/data
+    restart: unless-stopped
+
+volumes:
+  clouddesk-data:

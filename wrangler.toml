@@ -1,0 +1,41 @@
+# Worker 名称不在仓库中预填，一键部署时由用户在部署页自行填写
+main = "apps/worker/src/index.ts"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "apps/web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "clouddesk"
+migrations_dir = "apps/worker/migrations"
+
+# 一键部署时在配置页将 KV 命名空间名称设为 clouddesk（与 D1 同名，类型不同不冲突）
+[[kv_namespaces]]
+binding = "KV"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "clouddesk-files"
+
+[[durable_objects.bindings]]
+name = "DEVICE_ROOM"
+class_name = "DeviceRoom"
+
+[[durable_objects.bindings]]
+name = "SESSION_ROOM"
+class_name = "SessionRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["DeviceRoom", "SessionRoom"]
+
+# APP_NAME 不在仓库中预填；部署页留空时应用内默认显示 CloudDesk
+
+[vars]
+CONTROLLER_JWT_SECRET = "clouddesk-dev-controller-secret-change-me"
+CLIENT_LATEST_VERSION = "0.1.0"
+CLIENT_DOWNLOAD_URL = "https://github.com/clouddesk/clouddesk/releases/latest"

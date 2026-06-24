@@ -1,0 +1,40 @@
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "../../apps/web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "clouddesk"
+migrations_dir = "migrations"
+
+[[kv_namespaces]]
+binding = "KV"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "clouddesk-files"
+
+[[durable_objects.bindings]]
+name = "DEVICE_ROOM"
+class_name = "DeviceRoom"
+
+[[durable_objects.bindings]]
+name = "SESSION_ROOM"
+class_name = "SessionRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["DeviceRoom", "SessionRoom"]
+
+# 本地开发使用此 wrangler.toml；生产部署请使用仓库根目录 wrangler.toml
+
+[vars]
+SKIP_SIGNATURE_VERIFY = "true"
+CLIENT_LATEST_VERSION = "0.1.0"
+CLIENT_DOWNLOAD_URL = "https://github.com/clouddesk/clouddesk/releases/latest"
+CONTROLLER_JWT_SECRET = "clouddesk-dev-controller-secret-change-me"

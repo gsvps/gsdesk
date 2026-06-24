@@ -1,0 +1,49 @@
+{
+  "name": "clouddesk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "基于 Cloudflare 和 WebRTC 的无服务器远程桌面",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:worker": "npm run dev -w @clouddesk/worker",
+    "dev:web": "npm run dev -w @clouddesk/web",
+    "dev:server": "npm run dev -w @clouddesk/server",
+    "build": "npm run build -w @clouddesk/web",
+    "build:worker": "npm run build -w @clouddesk/worker",
+    "build:server": "npm run build -w @clouddesk/server",
+    "typecheck": "npm run typecheck -w @clouddesk/worker && npm run typecheck -w @clouddesk/web && npm run typecheck -w @clouddesk/server",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.toml",
+    "db:migrate": "wrangler d1 migrations apply DB --remote --config wrangler.toml",
+    "deploy": "npm run db:migrate && wrangler deploy --config wrangler.toml",
+    "deploy:cloudflare": "npm run build && npm run deploy"
+  },
+  "cloudflare": {
+    "products": ["Workers", "D1", "R2", "KV", "Durable Objects"],
+    "bindings": {
+      "DB": {
+        "description": "D1 数据库，存储用户、设备、会话与审计日志。默认名称：`clouddesk`"
+      },
+      "KV": {
+        "description": "KV 命名空间，存储登录会话、配对码、设备 Token。默认名称：`clouddesk`"
+      },
+      "R2": {
+        "description": "R2 存储桶，预留文件传输。默认名称：`clouddesk-files`"
+      },
+      "DEVICE_ROOM": {
+        "description": "Durable Object：Agent WebSocket 与设备在线状态"
+      },
+      "SESSION_ROOM": {
+        "description": "Durable Object：浏览器 WebRTC 信令会话"
+      },
+      "APP_NAME": {
+        "description": "应用显示名称（可选）。**留空**则界面默认显示 `CloudDesk`"
+      }
+    }
+  }
+}

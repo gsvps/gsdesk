@@ -1,0 +1,29 @@
+{
+  "name": "@clouddesk/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx src/migrate.ts"
+  },
+  "dependencies": {
+    "@clouddesk/protocol": "*",
+    "@hono/node-server": "^1.14.4",
+    "better-sqlite3": "^11.10.0",
+    "drizzle-orm": "^0.44.2",
+    "hono": "^4.8.3",
+    "ws": "^8.18.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250620.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.15.32",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}
