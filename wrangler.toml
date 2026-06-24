@@ -4,11 +4,6 @@ main = "apps/worker/src/index.ts"
 compatibility_date = "2026-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-[assets]
-directory = "apps/web/dist"
-binding = "ASSETS"
-not_found_handling = "single-page-application"
-
 [[d1_databases]]
 binding = "DB"
 database_name = "clouddesk"

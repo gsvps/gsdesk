@@ -21,7 +21,7 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.toml",
     "db:migrate": "wrangler d1 migrations apply DB --remote --config wrangler.toml",
     "deploy": "npm run db:migrate && wrangler deploy --config wrangler.toml",
-    "deploy:cloudflare": "npm run build && npm run deploy"
+    "deploy:cloudflare": "npm run deploy"
   },
   "cloudflare": {
     "products": ["Workers", "D1", "R2", "KV", "Durable Objects"],

@@ -1,14 +1,11 @@
 import path from 'node:path';
-import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:http';
 import { createCoreApp } from '../../worker/src/app.js';
 import type { Env } from '../../worker/src/env.js';
-import { latestClientVersion } from '../../worker/src/lib/client-release.js';
-import { jsonOk } from '../../worker/src/lib/response.js';
 import { createD1Database } from './adapters/d1-sqlite.js';
 import { MemoryKv } from './adapters/kv-memory.js';
-import { LocalR2Bucket, createLocalAssets } from './adapters/r2-local.js';
+import { LocalR2Bucket } from './adapters/r2-local.js';
 import { applyMigrations, openDatabase } from './migrate.js';
 import { attachWebSocketServer, nodeFetch } from './http.js';
 import { RoomRegistry } from './rooms/registry.js';
@@ -17,8 +14,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.PORT ?? 8787);
 const DATA_DIR = process.env.CLOUDDESK_DATA ?? path.resolve(__dirname, '../../../data');
-const WEB_ROOT =
-  process.env.CLOUDDESK_WEB_ROOT ?? path.resolve(__dirname, '../../web/dist');
 
 function createRuntime() {
   const sqlite = openDatabase(path.join(DATA_DIR, 'clouddesk.db'));
@@ -31,7 +26,6 @@ function createRuntime() {
     DB: createD1Database(sqlite),
     KV: kv,
     R2: new LocalR2Bucket(path.join(DATA_DIR, 'files')),
-    ASSETS: createLocalAssets(WEB_ROOT),
     BACKEND_KIND: 'self_hosted',
     APP_NAME: process.env.APP_NAME ?? 'CloudDesk',
     ALLOWED_ORIGIN: process.env.ALLOWED_ORIGIN,
@@ -59,30 +53,9 @@ function createRuntime() {
 const { env, registry } = createRuntime();
 const app = createCoreApp();
 
-app.get('/api/health', (c) =>
-  jsonOk(c, {
-    status: 'ok',
-    backend: 'self_hosted',
-    app: c.env.APP_NAME || 'CloudDesk',
-    version: latestClientVersion(c.env),
-  })
-);
-
 app.get('/ws/device/:deviceId', (c) => c.text('WebSocket upgrade required', 426));
 app.get('/ws/session/:sessionId', (c) => c.text('WebSocket upgrade required', 426));
-
-app.get('*', async (c) => {
-  const url = new URL(c.req.url);
-  let assetPath = url.pathname;
-  if (assetPath === '/') assetPath = '/index.html';
-  if (!assetPath.includes('.')) assetPath = '/index.html';
-
-  const asset = await c.env.ASSETS.fetch(new URL(assetPath, url.origin));
-  if (asset.status === 404 && assetPath !== '/index.html') {
-    return c.env.ASSETS.fetch(new URL('/index.html', url.origin));
-  }
-  return asset;
-});
+app.all('*', (c) => c.text('success'));
 
 const server = createServer((req, res) => {
   if (req.url?.startsWith('/ws/')) {
@@ -96,6 +69,5 @@ attachWebSocketServer(server, env, registry);
 server.listen(PORT, () => {
   console.log(`CloudDesk self-hosted server listening on http://0.0.0.0:${PORT}`);
   console.log(`Data directory: ${DATA_DIR}`);
-  console.log(`Web root: ${WEB_ROOT}`);
-  console.log('Backend kind: self_hosted');
+  console.log('Backend kind: self_hosted (API only, open clouddesk-client.exe for UI)');
 });

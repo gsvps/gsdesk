@@ -2,7 +2,6 @@ interface Env {
   DB: D1Database;
   KV: KVNamespace;
   R2: R2Bucket;
-  ASSETS: Fetcher;
   DEVICE_ROOM: DurableObjectNamespace;
   SESSION_ROOM: DurableObjectNamespace;
   APP_NAME?: string;

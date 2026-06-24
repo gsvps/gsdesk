@@ -81,32 +81,3 @@ export class LocalR2Bucket implements R2Bucket {
     return path.join(this.root, key.replace(/\.\./g, '_'));
   }
 }
-
-export function createLocalAssets(root: string): Fetcher {
-  return {
-    fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-      const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
-      let rel = decodeURIComponent(url.pathname);
-      if (rel === '/') rel = '/index.html';
-      const filePath = path.join(root, rel.replace(/^\//, '').replace(/\.\./g, '_'));
-      return fs
-        .readFile(filePath)
-        .then((data) => {
-          const type = contentType(filePath);
-          return new Response(data, { headers: { 'Content-Type': type } });
-        })
-        .catch(() => new Response('Not Found', { status: 404 }));
-    },
-  };
-}
-
-function contentType(filePath: string): string {
-  if (filePath.endsWith('.html')) return 'text/html; charset=utf-8';
-  if (filePath.endsWith('.js')) return 'application/javascript; charset=utf-8';
-  if (filePath.endsWith('.css')) return 'text/css; charset=utf-8';
-  if (filePath.endsWith('.svg')) return 'image/svg+xml';
-  if (filePath.endsWith('.png')) return 'image/png';
-  if (filePath.endsWith('.ico')) return 'image/x-icon';
-  if (filePath.endsWith('.json')) return 'application/json; charset=utf-8';
-  return 'application/octet-stream';
-}

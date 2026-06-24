@@ -16,18 +16,7 @@ app.get('/ws/session/:sessionId', async (c) => {
   return stub.fetch(c.req.raw);
 });
 
-app.get('*', async (c) => {
-  const url = new URL(c.req.url);
-  let path = url.pathname;
-  if (path === '/') path = '/index.html';
-  if (!path.includes('.')) path = '/index.html';
-
-  const asset = await c.env.ASSETS.fetch(new URL(path, url.origin));
-  if (asset.status === 404 && path !== '/index.html') {
-    return c.env.ASSETS.fetch(new URL('/index.html', url.origin));
-  }
-  return asset;
-});
+app.all('*', (c) => c.text('success'));
 
 export { createCoreApp } from './app';
 export { DeviceRoom } from './durable-objects/device-room';
