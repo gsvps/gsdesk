@@ -9,6 +9,7 @@ import agentDevice from './routes/agent-device';
 import clientUpdate from './routes/client-update';
 import { controllerAuthMiddleware } from './middleware/controller-auth';
 import { latestClientVersion } from './lib/client-release';
+import { ensureDatabaseReady } from './lib/db-bootstrap';
 import { isDatabaseReady } from './lib/system-user';
 import { createSessionWsToken } from './lib/session-ws';
 import { jsonFail, jsonOk } from './lib/response';
@@ -39,7 +40,7 @@ export function createCoreApp() {
   });
 
   app.get('/api/health', async (c) => {
-    const dbReady = await isDatabaseReady(c.env.DB);
+    const dbReady = await ensureDatabaseReady(c.env.DB);
     return jsonOk(c, {
       status: 'ok',
       backend: c.env.BACKEND_KIND ?? 'cloudflare',

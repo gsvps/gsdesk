@@ -6,6 +6,7 @@ import { devices } from '../db/schema';
 import { deviceAccessProtected, otpActive } from '../lib/device-access';
 import { generateNumericDeviceId } from '../lib/crypto';
 import { writeAuditLog } from '../lib/audit';
+import { ensureDatabaseReady } from '../lib/db-bootstrap';
 import { ensureSystemController } from '../lib/system-user';
 import { getClientIp, jsonFail, jsonOk } from '../lib/response';
 import { CONTROLLER_USER_ID, controllerAuthMiddleware } from '../middleware/controller-auth';
@@ -56,6 +57,15 @@ device.post('/register', async (c) => {
   }
 
   try {
+    const ready = await ensureDatabaseReady(c.env.DB);
+    if (!ready) {
+      return jsonFail(
+        c,
+        'DB_NOT_READY',
+        'D1 数据库初始化失败，请在项目根目录运行: npm run db:migrate',
+        503
+      );
+    }
     await ensureSystemController(c.env.DB);
 
     const now = Date.now();
