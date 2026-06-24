@@ -33,7 +33,7 @@ function normalizeDefaultQuality(value: string | undefined): QualityPreset {
 }
 
 export default function BackendSettings({ compact = false }: { compact?: boolean }) {
-  const { token, tokenVerified, setToken } = useAuth();
+  const { token, tokenVerified, setToken, reverifyToken } = useAuth();
   const bridge = hasAgentBridge();
   const [config, setConfig] = useState<BackendConfig>(() => loadBackendConfig());
   const [tokenValue, setTokenValue] = useState(token ?? '');
@@ -142,10 +142,18 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
   const persistToken = useCallback(
     async (next: string) => {
       const trimmed = next.trim();
-      if (!trimmed || trimmed === (token ?? '')) return;
+      if (!trimmed) return;
       setTokenBusy(true);
+      setTokenStatus('');
       try {
-        await setToken(trimmed);
+        if (trimmed !== (token ?? '')) {
+          await setToken(trimmed);
+        } else {
+          const result = await reverifyToken();
+          if (!result.ok) {
+            throw new Error(result.error ?? '令牌验证失败');
+          }
+        }
         setTokenStatusKind('success');
         setTokenStatus('令牌已自动保存并验证');
         notifyConfigUpdated();
@@ -156,7 +164,7 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
         setTokenBusy(false);
       }
     },
-    [setToken, token]
+    [reverifyToken, setToken, token]
   );
 
   const persistAgentFields = useCallback(async () => {

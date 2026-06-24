@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { loadAgentState, hasAgentBridge } from './agent-bridge';
 import { applyBackendToRuntime, loadBackendConfig } from './backend-config';
 import {
+  CONFIG_UPDATED_EVENT,
   loadPreferredApiBase,
   loadPreferredToken,
   savePreferredToken,
@@ -21,6 +22,8 @@ interface AuthContextValue {
   tokenVerified: boolean;
   loading: boolean;
   setToken: (token: string | null) => Promise<void>;
+  /** 用当前 API 地址重新验证已保存的令牌（API 保存后或令牌未改但需要重试时） */
+  reverifyToken: () => Promise<VerifyResult>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -151,6 +154,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokenVerified, setTokenVerified] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const reverifyToken = useCallback(async (): Promise<VerifyResult> => {
+    let current = token?.trim() ?? '';
+    if (!current) {
+      try {
+        current = (await loadInitialToken())?.trim() ?? '';
+      } catch {
+        current = getStoredToken()?.trim() ?? '';
+      }
+    }
+    if (!current) {
+      setTokenVerified(false);
+      return { ok: false, error: '令牌为空' };
+    }
+    if (current !== token) {
+      setTokenState(current);
+    }
+    const result = await verifyControllerToken(current);
+    setTokenVerified(result.ok);
+    return result;
+  }, [token]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -188,6 +212,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    const onConfigUpdated = () => {
+      void reverifyToken();
+    };
+    window.addEventListener(CONFIG_UPDATED_EVENT, onConfigUpdated);
+    return () => window.removeEventListener(CONFIG_UPDATED_EVENT, onConfigUpdated);
+  }, [reverifyToken]);
+
   const setToken = useCallback(async (next: string | null) => {
     const trimmed = next?.trim() ?? '';
     if (!trimmed) {
@@ -219,8 +251,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       tokenVerified,
       loading,
       setToken,
+      reverifyToken,
     }),
-    [token, tokenVerified, loading, setToken]
+    [token, tokenVerified, loading, setToken, reverifyToken]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
