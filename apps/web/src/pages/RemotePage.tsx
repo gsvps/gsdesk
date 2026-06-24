@@ -266,7 +266,7 @@ export default function RemotePage() {
           setUseVideoTrack(false);
           screenSizeRef.current = { width: frame.width, height: frame.height };
           drawFrame(frame.data, frame.width, frame.height);
-          setStatus('已连接 (JPEG)');
+          setStatus('已连接 (JPEG · 可调画质)');
         },
         onScreenInfo: (info: ScreenInfoMessage) => {
           screenSizeRef.current = { width: info.width, height: info.height };

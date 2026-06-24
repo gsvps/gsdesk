@@ -3,6 +3,7 @@ package capture
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"image"
 	"image/jpeg"
@@ -15,9 +16,12 @@ import (
 )
 
 const defaultFPS = 10
-const maxStreamWidth = 960
-// WebRTC DataChannel 单条消息上限约 256KB；base64 + JSON 后需留出余量
-const maxJPEGBytes = 120 * 1024
+const maxStreamWidth = 1280
+// WebRTC DataChannel 单条消息上限约 256KB；二进制帧仅 8 字节头，可传更大 JPEG
+const maxJPEGBytes = 240 * 1024
+
+// Binary screen frame header: "CDSF" + width(u16 BE) + height(u16 BE) + jpeg bytes
+var binaryFrameMagic = []byte{'C', 'D', 'S', 'F'}
 
 type ScreenMeta struct {
 	Width  int
@@ -106,7 +110,11 @@ func (s *Screen) StartStreaming(opts StreamOptions) func() {
 					})
 				}
 
-				if opts.SendControl != nil {
+				if opts.SendBinary != nil {
+					if frame := packBinaryFrame(jpegFrame, meta); frame != nil {
+						opts.SendBinary(frame)
+					}
+				} else if opts.SendControl != nil {
 					payload, err := json.Marshal(map[string]any{
 						"type":   "screen_frame",
 						"data":   base64.StdEncoding.EncodeToString(jpegFrame),
@@ -175,6 +183,20 @@ func encodeJPEG(img image.Image, cfg StreamSettings) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+func packBinaryFrame(jpegFrame []byte, meta ScreenMeta) []byte {
+	if len(jpegFrame) == 0 || meta.Width <= 0 || meta.Height <= 0 {
+		return nil
+	}
+	if len(jpegFrame)+len(binaryFrameMagic)+4 > maxJPEGBytes+len(binaryFrameMagic)+4 {
+		return nil
+	}
+	out := make([]byte, len(binaryFrameMagic)+4, len(binaryFrameMagic)+4+len(jpegFrame))
+	copy(out, binaryFrameMagic)
+	binary.BigEndian.PutUint16(out[4:6], uint16(meta.Width))
+	binary.BigEndian.PutUint16(out[6:8], uint16(meta.Height))
+	return append(out, jpegFrame...)
 }
 
 func downscale(src image.Image, maxWidth int) image.Image {

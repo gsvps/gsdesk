@@ -39,7 +39,7 @@ func showClientWindow(cfg *config.Config, save SaveFunc, agent AgentView, tab st
 			return
 		}
 		windowMu.Unlock()
-		if err := runClientWindow(cfg, newAgentHolder(agent, save), tab, block, clientWindowOpts{hideUntilReady: true}); err != nil {
+		if err := runClientWindow(cfg, newAgentHolder(agent, save), tab, block, clientWindowOpts{hideUntilReady: false}); err != nil {
 			showError(err.Error())
 		}
 	}()

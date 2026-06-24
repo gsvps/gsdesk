@@ -15,8 +15,8 @@ var (
 	settings   = StreamSettings{
 		MaxWidth:     maxStreamWidth,
 		FPS:          defaultFPS,
-		JPEGQuality:  60,
-		MaxJPEGBytes: maxJPEGBytes,
+		JPEGQuality:  68,
+		MaxJPEGBytes: 140 * 1024,
 	}
 )
 
@@ -35,13 +35,13 @@ func ApplyQualityPreset(preset string) {
 	}
 	switch preset {
 	case "low":
-		next = StreamSettings{MaxWidth: 640, FPS: 8, JPEGQuality: 45, MaxJPEGBytes: 80 * 1024}
+		next = StreamSettings{MaxWidth: 960, FPS: 8, JPEGQuality: 50, MaxJPEGBytes: 80 * 1024}
 	case "medium":
-		// defaults
+		next = StreamSettings{MaxWidth: 1280, FPS: 12, JPEGQuality: 68, MaxJPEGBytes: 140 * 1024}
 	case "high":
-		next = StreamSettings{MaxWidth: 1280, FPS: 12, JPEGQuality: 72, MaxJPEGBytes: 180 * 1024}
+		next = StreamSettings{MaxWidth: 1600, FPS: 15, JPEGQuality: 78, MaxJPEGBytes: 190 * 1024}
 	case "ultra":
-		next = StreamSettings{MaxWidth: 1600, FPS: 15, JPEGQuality: 80, MaxJPEGBytes: 220 * 1024}
+		next = StreamSettings{MaxWidth: 1920, FPS: 18, JPEGQuality: 85, MaxJPEGBytes: 230 * 1024}
 	default:
 		return
 	}

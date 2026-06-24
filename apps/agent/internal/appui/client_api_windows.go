@@ -27,7 +27,7 @@ func ShowError(msg string) {
 
 // RunClientWindow opens the unified UI and blocks until the window closes.
 func RunClientWindow(cfg *config.Config, save SaveFunc, agent AgentView, tab string) error {
-	return runClientWindow(cfg, newAgentHolder(agent, save), tab, true, clientWindowOpts{hideUntilReady: true})
+	return runClientWindow(cfg, newAgentHolder(agent, save), tab, true, clientWindowOpts{hideUntilReady: false})
 }
 
 // ShowMainWindow opens the client UI on the device tab (legacy alias).

@@ -216,11 +216,14 @@ export class RemoteSession {
   }
 
   private async handleControlMessage(data: string | ArrayBuffer | Blob) {
+    if (data instanceof ArrayBuffer) {
+      this.handleBinaryFrame(data);
+      return;
+    }
+
     let text: string;
     if (typeof data === 'string') {
       text = data;
-    } else if (data instanceof ArrayBuffer) {
-      text = new TextDecoder().decode(data);
     } else if (typeof Blob !== 'undefined' && data instanceof Blob) {
       text = await data.text();
     } else {
@@ -257,6 +260,35 @@ export class RemoteSession {
     } catch {
       // ignore non-json control payloads
     }
+  }
+
+  private handleBinaryFrame(data: ArrayBuffer) {
+    const view = new DataView(data);
+    if (data.byteLength < 8) return;
+    if (
+      view.getUint8(0) !== 0x43 ||
+      view.getUint8(1) !== 0x44 ||
+      view.getUint8(2) !== 0x53 ||
+      view.getUint8(3) !== 0x46
+    ) {
+      return;
+    }
+    const width = view.getUint16(4);
+    const height = view.getUint16(6);
+    const jpeg = data.slice(8);
+    const bytes = new Uint8Array(jpeg);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    this.options.onScreenFrame?.({
+      type: 'screen_frame',
+      data: btoa(binary),
+      width,
+      height,
+      format: 'jpeg',
+    });
   }
 
   sendControl(payload: Record<string, unknown>) {

@@ -135,6 +135,11 @@ func (m *Manager) createSession(msg signal.Message) (*Session, error) {
 		session.streamCancel = screen.StartStreaming(capture.StreamOptions{
 			VP8Frames:   vp8Frames,
 			SendControl: session.sendControl,
+			SendBinary: func(payload []byte) {
+				if !capture.VP8Available() {
+					session.sendBinary(payload)
+				}
+			},
 			OnReady: func(meta capture.ScreenMeta) {
 				desktopBounds := capture.PrimaryDisplayBounds()
 				input.SetScreenMapping(meta.Width, meta.Height, desktopBounds)
@@ -251,6 +256,18 @@ func (s *Session) sendControl(payload []byte) {
 	}
 	if err := dc.Send(payload); err != nil {
 		log.Printf("session %s: datachannel send failed (%d bytes): %v", s.id, len(payload), err)
+	}
+}
+
+func (s *Session) sendBinary(payload []byte) {
+	s.mu.Lock()
+	dc := s.controlDC
+	s.mu.Unlock()
+	if dc == nil || dc.ReadyState() != webrtc.DataChannelStateOpen {
+		return
+	}
+	if err := dc.Send(payload); err != nil {
+		log.Printf("session %s: datachannel binary send failed (%d bytes): %v", s.id, len(payload), err)
 	}
 }
 
