@@ -5,7 +5,7 @@ interface FileTransferPanelProps {
   sessionId: string;
   status: string;
   onStatusChange: (status: string) => void;
-  onSendControl: (payload: Record<string, unknown>) => void;
+  onSendControl: (payload: Record<string, unknown>) => boolean;
   onClose: () => void;
 }
 
@@ -40,7 +40,10 @@ export default function FileTransferPanel({
       return;
     }
     onStatusChange('正在请求远程文件...');
-    onSendControl({ type: 'file_from_agent', path });
+    const sent = onSendControl({ type: 'file_from_agent', path });
+    if (!sent) {
+      onStatusChange('连接未就绪，请确认远程桌面已连接后再试');
+    }
   }
 
   return (

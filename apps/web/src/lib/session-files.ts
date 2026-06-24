@@ -33,14 +33,17 @@ export async function uploadSessionFile(sessionId: string, file: File): Promise<
 export async function sendFileToAgent(
   sessionId: string,
   file: File,
-  onSendControl: (payload: Record<string, unknown>) => void
+  onSendControl: (payload: Record<string, unknown>) => boolean
 ): Promise<UploadedSessionFile> {
   const uploaded = await uploadSessionFile(sessionId, file);
-  onSendControl({
+  const sent = onSendControl({
     type: 'file_to_agent',
     file_id: uploaded.file_id,
     filename: uploaded.filename,
   });
+  if (!sent) {
+    throw new Error('连接未就绪，无法通知远程端接收文件');
+  }
   return uploaded;
 }
 

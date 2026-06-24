@@ -405,7 +405,7 @@ export default function RemotePage() {
     for (const file of files) {
       try {
         setFileStatus(`正在上传 ${file.name}...`);
-        await sendFileToAgent(sessionId, file, (payload) => sessionRef.current?.sendControl(payload));
+        await sendFileToAgent(sessionId, file, (payload) => sessionRef.current?.sendControl(payload) ?? false);
         setFileStatus(`已发送到远程：${file.name}`);
       } catch (err) {
         setFileStatus(err instanceof Error ? err.message : '上传失败');
@@ -674,7 +674,7 @@ export default function RemotePage() {
                 sessionId={sessionId}
                 status={fileStatus}
                 onStatusChange={setFileStatus}
-                onSendControl={(payload) => sessionRef.current?.sendControl(payload)}
+                onSendControl={(payload) => sessionRef.current?.sendControl(payload) ?? false}
                 onClose={() => setShowFilePanel(false)}
               />
             )}

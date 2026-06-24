@@ -217,21 +217,7 @@ export class RemoteSession {
     }
   }
 
-  private async handleControlMessage(data: string | ArrayBuffer | Blob) {
-    if (data instanceof ArrayBuffer) {
-      this.handleBinaryFrame(data);
-      return;
-    }
-
-    let text: string;
-    if (typeof data === 'string') {
-      text = data;
-    } else if (typeof Blob !== 'undefined' && data instanceof Blob) {
-      text = await data.text();
-    } else {
-      return;
-    }
-
+  private dispatchControlJson(text: string): void {
     try {
       const message = JSON.parse(text) as
         | ScreenFrameMessage
@@ -264,6 +250,37 @@ export class RemoteSession {
     }
   }
 
+  private tryDispatchBinaryControlJson(data: ArrayBuffer): boolean {
+    if (data.byteLength === 0) return false;
+    // Agent (Pion) 以 binary 发送 JSON；首字节 '{' = 0x7b
+    if (new DataView(data).getUint8(0) !== 0x7b) return false;
+    try {
+      this.dispatchControlJson(new TextDecoder().decode(data));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async handleControlMessage(data: string | ArrayBuffer | Blob) {
+    if (data instanceof ArrayBuffer) {
+      if (this.tryDispatchBinaryControlJson(data)) return;
+      this.handleBinaryFrame(data);
+      return;
+    }
+
+    let text: string;
+    if (typeof data === 'string') {
+      text = data;
+    } else if (typeof Blob !== 'undefined' && data instanceof Blob) {
+      text = await data.text();
+    } else {
+      return;
+    }
+
+    this.dispatchControlJson(text);
+  }
+
   private handleBinaryFrame(data: ArrayBuffer) {
     const view = new DataView(data);
     if (data.byteLength < 8) return;
@@ -288,10 +305,12 @@ export class RemoteSession {
     });
   }
 
-  sendControl(payload: Record<string, unknown>) {
+  sendControl(payload: Record<string, unknown>): boolean {
     if (this.dataChannel?.readyState === 'open') {
       this.dataChannel.send(JSON.stringify(payload));
+      return true;
     }
+    return false;
   }
 
   private sendSignal(message: SignalMessage) {

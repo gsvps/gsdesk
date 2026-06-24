@@ -258,6 +258,13 @@ func (s *Session) sendControl(payload []byte) {
 	if dc == nil || dc.ReadyState() != webrtc.DataChannelStateOpen {
 		return
 	}
+	text := string(payload)
+	if len(payload) > 0 && payload[0] == '{' {
+		if err := dc.SendText(text); err != nil {
+			log.Printf("session %s: datachannel text send failed (%d bytes): %v", s.id, len(payload), err)
+		}
+		return
+	}
 	if err := dc.Send(payload); err != nil {
 		log.Printf("session %s: datachannel send failed (%d bytes): %v", s.id, len(payload), err)
 	}
