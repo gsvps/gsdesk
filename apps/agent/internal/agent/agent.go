@@ -156,6 +156,13 @@ func (a *Agent) reconnectHost() {
 		return
 	}
 	log.Printf("host service connected server=%s device=%s", a.cfg.ServerURL, a.deviceID)
+	if a.otp != nil {
+		go func() {
+			if err := a.otp.RefreshNow(); err != nil {
+				log.Printf("otp refresh after connect: %v", err)
+			}
+		}()
+	}
 }
 
 func (a *Agent) ApplyConfig(next *config.Config) error {
@@ -272,6 +279,13 @@ func (a *Agent) register() error {
 	}
 
 	log.Printf("device registered: %s", resp.DeviceID)
+	if a.otp != nil {
+		go func() {
+			if err := a.otp.RefreshNow(); err != nil {
+				log.Printf("otp refresh after register: %v", err)
+			}
+		}()
+	}
 	return nil
 }
 

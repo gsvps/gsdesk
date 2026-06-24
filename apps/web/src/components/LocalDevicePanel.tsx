@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Switch from './Switch';
 import {
   copyViaBridge,
+  generateAgentOTP,
   getAgentOTPStatus,
   hasAgentBridge,
   loadAgentState,
@@ -29,7 +30,7 @@ export default function LocalDevicePanel() {
     setStatusKind(kind);
   }, []);
 
-  const refreshOTP = useCallback(async () => {
+  const refreshOTP = useCallback(async (forceGenerate = false) => {
     try {
       const result = await getAgentOTPStatus();
       if (result.code) {
@@ -43,11 +44,27 @@ export default function LocalDevicePanel() {
         } else {
           setOtpHint(`无远程连接 ${idle} 分钟后自动更新`);
         }
+        return;
       }
-    } catch {
-      /* ignore polling errors */
+      if (result.error) {
+        setOtpHint(result.error);
+        return;
+      }
+      if (forceGenerate || online) {
+        const gen = await generateAgentOTP();
+        if (gen.code) {
+          setOtpCode(gen.code);
+          setOtpHint('一次性密码已生成。');
+          return;
+        }
+        if (gen.error) {
+          setOtpHint(gen.error);
+        }
+      }
+    } catch (err) {
+      setOtpHint(err instanceof Error ? err.message : '获取一次性密码失败');
     }
-  }, []);
+  }, [online]);
 
   useEffect(() => {
     if (!bridge) return;
@@ -55,10 +72,11 @@ export default function LocalDevicePanel() {
       .then((data) => {
         setState(data);
         setOnline(data.online);
-        void refreshOTP();
+        void refreshOTP(true);
         void refreshAgentStatus().then((data) => {
           setOnline(Boolean(data.online));
           if (data.state) setState(data.state);
+          if (data.online) void refreshOTP(true);
         });
       })
       .catch((err) => showStatus(String(err), 'error'));
@@ -66,18 +84,19 @@ export default function LocalDevicePanel() {
 
   useEffect(() => {
     if (!bridge) return;
-    const otpTimer = setInterval(() => void refreshOTP(), 15000);
+    const otpTimer = setInterval(() => void refreshOTP(online), 15000);
     const onlineTimer = setInterval(() => {
       void refreshAgentStatus().then((data) => {
         setOnline(Boolean(data.online));
         if (data.state) setState(data.state);
+        if (data.online && !otpCode) void refreshOTP(true);
       });
     }, 3000);
     return () => {
       clearInterval(otpTimer);
       clearInterval(onlineTimer);
     };
-  }, [bridge, refreshOTP]);
+  }, [bridge, refreshOTP, online, otpCode]);
 
   if (!bridge) return null;
   if (!state) return <p className="text-slate-400">加载本机信息...</p>;
@@ -131,6 +150,7 @@ export default function LocalDevicePanel() {
       const next = Boolean(data.state?.online);
       if (next) {
         showStatus('本机已连接服务器。', 'success');
+        void refreshOTP(true);
       } else if (data.state?.last_error) {
         showStatus(`本机未连接：${data.state.last_error}`, 'error');
       } else {

@@ -101,6 +101,13 @@ func (m *OTPManager) tick() {
 		return
 	}
 
+	if m.code == "" {
+		if err := m.refreshLocked(); err != nil {
+			log.Printf("otp generate retry failed: %v", err)
+		}
+		return
+	}
+
 	active := m.activeSessionsLocked()
 	if active > 0 {
 		m.idleSince = time.Time{}
