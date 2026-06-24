@@ -4,6 +4,7 @@ package appui
 
 import (
 	"encoding/json"
+	"log"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -33,6 +34,7 @@ type uiState struct {
 	ConfigPath              string `json:"config_path"`
 	InstallPath      string `json:"install_path"`
 	AgentReady       bool   `json:"agent_ready"`
+	LastError        string `json:"last_error,omitempty"`
 }
 
 type savePayload struct {
@@ -65,8 +67,14 @@ func buildUIState(cfg *config.Config, agent AgentView) uiState {
 	settings := cfg.Settings.Normalized()
 	path, _ := cfg.ConfigPath()
 	online := agent != nil && agent.IsOnline()
-	return uiState{
-		DeviceID:         cfg.DeviceID,
+	deviceID := cfg.DeviceID
+	if agent != nil {
+		if id := agent.DeviceID(); id != "" {
+			deviceID = id
+		}
+	}
+	state := uiState{
+		DeviceID:         deviceID,
 		Online:           online,
 		ServerURL:        cfg.ServerURL,
 		DeviceName:       cfg.DeviceName,
@@ -83,6 +91,10 @@ func buildUIState(cfg *config.Config, agent AgentView) uiState {
 		InstallPath:      cfg.InstallPath(),
 		AgentReady:       agent != nil,
 	}
+	if agent != nil {
+		state.LastError = agent.LastError()
+	}
+	return state
 }
 
 func applySave(cfg *config.Config, save SaveFunc, agent AgentView, payload savePayload) actionResult {
@@ -115,25 +127,32 @@ func applySave(cfg *config.Config, save SaveFunc, agent AgentView, payload saveP
 
 	if agent != nil {
 		if payload.ClearPermanentPassword {
-			if err := agent.ClearPermanentPassword(); err != nil {
-				return actionResult{OK: false, Error: "清除永久密码失败: " + err.Error()}
-			}
+			go func() {
+				if err := agent.ClearPermanentPassword(); err != nil {
+					log.Printf("clear permanent password: %v", err)
+				}
+			}()
 		} else if pwd := payload.PermanentPassword; pwd != "" {
 			if len(pwd) < 4 {
 				return actionResult{OK: false, Error: "永久密码至少 4 位"}
 			}
-			if err := agent.SetPermanentPassword(pwd); err != nil {
-				return actionResult{OK: false, Error: "设置永久密码失败: " + err.Error()}
-			}
+			password := pwd
+			go func() {
+				if err := agent.SetPermanentPassword(password); err != nil {
+					log.Printf("set permanent password: %v", err)
+				}
+			}()
 		}
 	}
 
 	*cfg = next
 	state := buildUIState(cfg, agent)
+	msg := "设置已保存，Agent 正在后台连接…"
 	return actionResult{
 		OK:      true,
-		Message: "设置已保存。若修改了服务器或设备名称，请重启 Agent。",
+		Message: msg,
 		State:   &state,
+		Online:  state.Online,
 	}
 }
 

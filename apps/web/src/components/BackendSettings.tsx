@@ -10,7 +10,8 @@ import {
   type BackendConfig,
   type BackendMode,
 } from '../lib/backend-config';
-import { setRuntimeApiBase } from '../lib/runtime-config';
+import { hasAgentBridge, loadAgentState, syncAgentServerUrl } from '../lib/agent-bridge';
+import { isDesktopClient, setRuntimeApiBase } from '../lib/runtime-config';
 
 export default function BackendSettings() {
   const [config, setConfig] = useState<BackendConfig>(() => loadBackendConfig());
@@ -19,7 +20,21 @@ export default function BackendSettings() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setRuntimeApiBase(applyBackendToRuntime(loadBackendConfig()));
+    const loaded = loadBackendConfig();
+    if (isDesktopClient() && hasAgentBridge()) {
+      void loadAgentState()
+        .then((agent) => {
+          const apiBase = agent.server_url?.replace(/\/$/, '') || loaded.apiBase;
+          const mode: BackendMode = apiBase.includes('127.0.0.1') || apiBase.includes('localhost') ? 'local' : 'cloudflare';
+          setConfig({ mode: loaded.apiBase ? loaded.mode : mode, apiBase: apiBase || loaded.apiBase });
+          setRuntimeApiBase('');
+        })
+        .catch(() => {
+          setRuntimeApiBase(applyBackendToRuntime(loaded));
+        });
+      return;
+    }
+    setRuntimeApiBase(applyBackendToRuntime(loaded));
   }, []);
 
   function updateMode(mode: BackendMode) {
@@ -29,7 +44,14 @@ export default function BackendSettings() {
     }));
   }
 
+  const apiBaseFilled = Boolean(config.apiBase.trim()) || config.mode === 'local';
+
   async function handleSave() {
+    if (!apiBaseFilled) {
+      setStatusKind('error');
+      setStatus('请先填写 API 地址');
+      return;
+    }
     setBusy(true);
     setStatus('');
     try {
@@ -45,6 +67,19 @@ export default function BackendSettings() {
       }
       saveBackendConfig(next);
       setConfig(next);
+      if (isDesktopClient() && hasAgentBridge()) {
+        const apiBase = next.apiBase.trim() || suggestedApiBase(next.mode);
+        const sync = await syncAgentServerUrl(apiBase);
+        if (!sync.ok) {
+          setStatusKind('error');
+          setStatus(sync.error || '同步 Agent 服务器地址失败');
+          return;
+        }
+        setRuntimeApiBase('');
+        setStatusKind('success');
+        setStatus(`${test.message}。设置已保存，本机 Agent 正在后台连接，请稍后在主页点刷新。`);
+        return;
+      }
       setRuntimeApiBase(applyBackendToRuntime(next));
       setStatusKind('success');
       setStatus(`${test.message}。控制端 API 已切换。`);
@@ -116,8 +151,13 @@ export default function BackendSettings() {
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" className="btn-primary" disabled={busy} onClick={() => void handleSave()}>
-          保存并应用
+        <button
+          type="button"
+          className={apiBaseFilled ? 'btn-primary' : 'rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-slate-400 cursor-not-allowed'}
+          disabled={busy || !apiBaseFilled}
+          onClick={() => void handleSave()}
+        >
+          {busy ? '保存中…' : '保存并应用'}
         </button>
         <button
           type="button"

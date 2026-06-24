@@ -53,6 +53,10 @@ func Load() (*Config, error) {
 	}
 
 	cfg.Settings = cfg.Settings.Normalized()
+	cfg.NormalizeServerURL()
+	if err := cfg.MigrateLegacyCredentials(); err != nil {
+		return nil, err
+	}
 	return cfg, nil
 }
 

@@ -22,7 +22,7 @@ func showClientWindow(cfg *config.Config, save SaveFunc, agent AgentView, tab st
 
 func runClientWindow(cfg *config.Config, save SaveFunc, agent AgentView, tab string, block bool) error {
 	mux := http.NewServeMux()
-	mountClientHandlers(mux, cfg.ServerURL)
+	mountClientHandlers(mux, cfg)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return err

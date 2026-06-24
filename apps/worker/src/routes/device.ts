@@ -6,6 +6,7 @@ import { devices } from '../db/schema';
 import { deviceAccessProtected, otpActive } from '../lib/device-access';
 import { generateNumericDeviceId } from '../lib/crypto';
 import { writeAuditLog } from '../lib/audit';
+import { ensureSystemController } from '../lib/system-user';
 import { getClientIp, jsonFail, jsonOk } from '../lib/response';
 import { CONTROLLER_USER_ID, controllerAuthMiddleware } from '../middleware/controller-auth';
 import { createDeviceToken } from '../middleware/auth';
@@ -54,35 +55,51 @@ device.post('/register', async (c) => {
     return jsonFail(c, 'BAD_REQUEST', '缺少设备信息');
   }
 
-  const now = Date.now();
-  const db = createDb(c.env.DB);
-  const deviceId = await allocateDeviceId(db);
+  try {
+    await ensureSystemController(c.env.DB);
 
-  await db.insert(devices).values({
-    id: deviceId,
-    userId: CONTROLLER_USER_ID,
-    deviceName,
-    hostname,
-    os,
-    publicKey,
-    unattendedEnabled: 0,
-    online: 0,
-    lastSeen: null,
-    createdAt: now,
-    updatedAt: now,
-  });
+    const now = Date.now();
+    const db = createDb(c.env.DB);
+    const deviceId = await allocateDeviceId(db);
 
-  const deviceToken = await createDeviceToken(c.env.KV, deviceId);
+    await db.insert(devices).values({
+      id: deviceId,
+      userId: CONTROLLER_USER_ID,
+      deviceName,
+      hostname,
+      os,
+      publicKey,
+      unattendedEnabled: 0,
+      online: 0,
+      lastSeen: null,
+      createdAt: now,
+      updatedAt: now,
+    });
 
-  await writeAuditLog(c.env.DB, {
-    userId: CONTROLLER_USER_ID,
-    deviceId,
-    action: 'device.register',
-    ip: getClientIp(c),
-    metadata: { deviceName, hostname, os },
-  });
+    const deviceToken = await createDeviceToken(c.env.KV, deviceId);
 
-  return jsonOk(c, { device_id: deviceId, device_token: deviceToken });
+    await writeAuditLog(c.env.DB, {
+      userId: CONTROLLER_USER_ID,
+      deviceId,
+      action: 'device.register',
+      ip: getClientIp(c),
+      metadata: { deviceName, hostname, os },
+    });
+
+    return jsonOk(c, { device_id: deviceId, device_token: deviceToken });
+  } catch (err) {
+    console.error('device register failed', err);
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('no such table')) {
+      return jsonFail(
+        c,
+        'DB_NOT_READY',
+        'D1 数据库未初始化，请在项目根目录运行: npm run db:migrate',
+        503
+      );
+    }
+    return jsonFail(c, 'INTERNAL_ERROR', '设备注册失败，请确认已执行 D1 迁移 (npm run db:migrate)', 500);
+  }
 });
 
 device.get('/:id', controllerAuthMiddleware, async (c) => {

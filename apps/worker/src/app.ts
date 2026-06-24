@@ -9,6 +9,7 @@ import agentDevice from './routes/agent-device';
 import clientUpdate from './routes/client-update';
 import { controllerAuthMiddleware } from './middleware/controller-auth';
 import { latestClientVersion } from './lib/client-release';
+import { isDatabaseReady } from './lib/system-user';
 import { createSessionWsToken } from './lib/session-ws';
 import { jsonFail, jsonOk } from './lib/response';
 
@@ -37,14 +38,16 @@ export function createCoreApp() {
     await next();
   });
 
-  app.get('/api/health', (c) =>
-    jsonOk(c, {
+  app.get('/api/health', async (c) => {
+    const dbReady = await isDatabaseReady(c.env.DB);
+    return jsonOk(c, {
       status: 'ok',
       backend: c.env.BACKEND_KIND ?? 'cloudflare',
       app: c.env.APP_NAME || 'CloudDesk',
       version: latestClientVersion(c.env),
-    })
-  );
+      db_ready: dbReady,
+    });
+  });
 
   app.route('/api/auth', auth);
   app.get('/api/controller/verify', controllerAuthMiddleware, (c) => jsonOk(c, { verified: true }));

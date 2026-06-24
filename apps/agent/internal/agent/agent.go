@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/clouddesk/agent/internal/api"
 	"github.com/clouddesk/agent/internal/capture"
@@ -21,17 +21,8 @@ import (
 )
 
 var sessionPromptLocks sync.Map // sessionID -> *sync.Mutex
-var numericDeviceIDPattern = regexp.MustCompile(`^\d{8}$`)
-
-func deviceIDNeedsReregister(id string) bool {
-	if id == "" {
-		return true
-	}
-	if strings.HasPrefix(id, "dev_") {
-		return true
-	}
-	return !numericDeviceIDPattern.MatchString(id)
-}
+var reconnectMu sync.Mutex
+var lastReconnectAttempt time.Time
 
 type Agent struct {
 	cfg      *config.Config
@@ -41,6 +32,9 @@ type Agent struct {
 	webrtc   *agentwebrtc.Manager
 	transfer *transfer.Handler
 	otp      *OTPManager
+
+	lastError   string
+	lastErrorMu sync.RWMutex
 }
 
 func New(cfg *config.Config) (*Agent, error) {
@@ -51,12 +45,12 @@ func New(cfg *config.Config) (*Agent, error) {
 
 	a := &Agent{cfg: cfg, keys: keys}
 
-	if deviceIDNeedsReregister(cfg.DeviceID) || cfg.DeviceToken == "" {
-		cfg.DeviceID = ""
-		cfg.DeviceToken = ""
-		if err := a.register(); err != nil {
-			log.Printf("device register failed (will retry on connect): %v", err)
-		}
+	if config.DeviceIDNeedsReregister(cfg.DeviceID) || cfg.DeviceToken == "" {
+		a.resetDeviceCredentials()
+	if err := a.register(); err != nil {
+		a.setLastError(err.Error())
+		log.Printf("device register failed (will retry on connect): %v", err)
+	}
 	}
 
 	a.deviceID = cfg.DeviceID
@@ -85,42 +79,113 @@ func (a *Agent) clipboardEnabled() bool {
 	return a.cfg.Settings.ClipboardEnabled()
 }
 
+func (a *Agent) ensureRegistered() error {
+	if a.cfg.DeviceID != "" && a.cfg.DeviceToken != "" &&
+		!config.DeviceIDNeedsReregister(a.cfg.DeviceID) &&
+		a.cfg.DeviceID == a.deviceID {
+		return nil
+	}
+	if config.DeviceIDNeedsReregister(a.cfg.DeviceID) {
+		a.resetDeviceCredentials()
+	}
+	if err := a.register(); err != nil {
+		a.setLastError(err.Error())
+		return err
+	}
+	a.setLastError("")
+	a.deviceID = a.cfg.DeviceID
+	return nil
+}
+
+func (a *Agent) resetDeviceCredentials() {
+	a.cfg.DeviceID = ""
+	a.cfg.DeviceToken = ""
+	a.deviceID = ""
+}
+
+func (a *Agent) setLastError(msg string) {
+	a.lastErrorMu.Lock()
+	a.lastError = msg
+	a.lastErrorMu.Unlock()
+}
+
+func (a *Agent) LastError() string {
+	a.lastErrorMu.RLock()
+	defer a.lastErrorMu.RUnlock()
+	return a.lastError
+}
+
+func (a *Agent) RefreshConnection() {
+	reconnectMu.Lock()
+	if time.Since(lastReconnectAttempt) < 15*time.Second {
+		reconnectMu.Unlock()
+		return
+	}
+	lastReconnectAttempt = time.Now()
+	reconnectMu.Unlock()
+	go a.reconnectHost()
+}
+
+func (a *Agent) ForceReconnect() {
+	reconnectMu.Lock()
+	lastReconnectAttempt = time.Now()
+	reconnectMu.Unlock()
+	go a.reconnectHost()
+}
+
+func (a *Agent) reconnectHost() {
+	if a.cfg == nil || !a.cfg.Settings.AgentEnabledOn() {
+		return
+	}
+	if err := a.ensureRegistered(); err != nil {
+		a.setLastError(err.Error())
+		log.Printf("device register before connect: %v", err)
+		return
+	}
+	a.setLastError("")
+	if a.signal != nil {
+		a.signal.Close()
+	}
+	a.transfer = transfer.NewHandler(a.cfg.ServerURL, a.cfg.DeviceToken, a.cfg.DeviceID, func() string {
+		return a.cfg.Settings.DownloadDirectory()
+	})
+	a.signal = signal.New(a.cfg.ServerURL, a.cfg.DeviceID, a.cfg.DeviceToken, a.handleSignal)
+	a.webrtc = agentwebrtc.NewManager(a.signal, a.handleControl, a.clipboardEnabled)
+	if err := a.signal.Connect(); err != nil {
+		log.Printf("agent reconnect: %v", err)
+		return
+	}
+	log.Printf("host service connected server=%s device=%s", a.cfg.ServerURL, a.deviceID)
+}
+
 func (a *Agent) ApplyConfig(next *config.Config) error {
 	if next == nil {
 		return fmt.Errorf("config is nil")
 	}
 	wasEnabled := a.cfg.Settings.AgentEnabledOn()
-	oldServerURL := a.cfg.ServerURL
+	oldServerURL := strings.TrimRight(strings.TrimSpace(a.cfg.ServerURL), "/")
 	next.Settings = next.Settings.Normalized()
-	a.cfg.ServerURL = next.ServerURL
+	nextServerURL := strings.TrimRight(strings.TrimSpace(next.ServerURL), "/")
+	a.cfg.ServerURL = nextServerURL
 	a.cfg.DeviceName = next.DeviceName
 	a.cfg.Settings = next.Settings
 	capture.ApplyQualityPreset(next.Settings.DefaultQuality)
 	if err := platform.SetAutostart(next.Settings.LaunchAtStartup); err != nil {
 		return fmt.Errorf("设置开机自启失败: %w", err)
 	}
+	serverChanged := oldServerURL != nextServerURL
+	if serverChanged {
+		a.resetDeviceCredentials()
+	}
 	if err := a.cfg.Save(); err != nil {
 		return err
 	}
 	nowEnabled := next.Settings.AgentEnabledOn()
-	serverChanged := oldServerURL != next.ServerURL
 	if wasEnabled && !nowEnabled {
 		a.signal.Close()
 		log.Printf("host service disabled")
-	} else if nowEnabled && (!wasEnabled || serverChanged) {
-		if a.signal != nil {
-			a.signal.Close()
-		}
-		a.transfer = transfer.NewHandler(a.cfg.ServerURL, a.cfg.DeviceToken, a.cfg.DeviceID, func() string {
-			return a.cfg.Settings.DownloadDirectory()
-		})
-		a.signal = signal.New(a.cfg.ServerURL, a.cfg.DeviceID, a.cfg.DeviceToken, a.handleSignal)
-		a.webrtc = agentwebrtc.NewManager(a.signal, a.handleControl, a.clipboardEnabled)
-		if err := a.signal.Connect(); err != nil {
-			log.Printf("agent reconnect after config change: %v", err)
-		} else {
-			log.Printf("host service enabled")
-		}
+	} else if nowEnabled && (!wasEnabled || serverChanged || !a.IsOnline()) {
+		go a.reconnectHost()
 	}
 	return nil
 }
@@ -201,6 +266,7 @@ func (a *Agent) register() error {
 	a.cfg.DeviceID = resp.DeviceID
 	a.cfg.DeviceToken = resp.DeviceToken
 	a.cfg.PairingToken = ""
+	a.deviceID = resp.DeviceID
 	if err := a.cfg.Save(); err != nil {
 		return err
 	}
@@ -220,24 +286,17 @@ func (a *Agent) ConnectIfEnabled() error {
 	if a.cfg == nil || !a.cfg.Settings.AgentEnabledOn() {
 		return nil
 	}
-	if a.deviceID == "" || a.cfg.DeviceToken == "" {
-		if err := a.register(); err != nil {
-			return err
-		}
-		a.deviceID = a.cfg.DeviceID
-		if a.signal != nil {
-			a.signal.Close()
-		}
-		a.transfer = transfer.NewHandler(a.cfg.ServerURL, a.cfg.DeviceToken, a.cfg.DeviceID, func() string {
-			return a.cfg.Settings.DownloadDirectory()
-		})
-		a.signal = signal.New(a.cfg.ServerURL, a.cfg.DeviceID, a.cfg.DeviceToken, a.handleSignal)
-		a.webrtc = agentwebrtc.NewManager(a.signal, a.handleControl, a.clipboardEnabled)
+	if err := a.ensureRegistered(); err != nil {
+		return err
 	}
-	if a.signal == nil {
-		a.signal = signal.New(a.cfg.ServerURL, a.cfg.DeviceID, a.cfg.DeviceToken, a.handleSignal)
-		a.webrtc = agentwebrtc.NewManager(a.signal, a.handleControl, a.clipboardEnabled)
+	if a.signal != nil {
+		a.signal.Close()
 	}
+	a.transfer = transfer.NewHandler(a.cfg.ServerURL, a.cfg.DeviceToken, a.cfg.DeviceID, func() string {
+		return a.cfg.Settings.DownloadDirectory()
+	})
+	a.signal = signal.New(a.cfg.ServerURL, a.cfg.DeviceID, a.cfg.DeviceToken, a.handleSignal)
+	a.webrtc = agentwebrtc.NewManager(a.signal, a.handleControl, a.clipboardEnabled)
 	if a.signal.IsConnected() {
 		return nil
 	}

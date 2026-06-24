@@ -15,6 +15,7 @@ export interface AgentUIState {
   config_path: string;
   install_path?: string;
   agent_ready: boolean;
+  last_error?: string;
 }
 
 export interface AgentSavePayload {
@@ -62,6 +63,7 @@ declare global {
     getOTPStatusGo?: () => Promise<string> | string;
     clearPermanentPasswordGo?: () => Promise<string> | string;
     saveSettingsGo?: (raw: string) => Promise<string> | string;
+    reconnectAgentGo?: () => Promise<string> | string;
     closeWindowGo?: () => Promise<string> | string;
   }
 }
@@ -80,13 +82,56 @@ export async function loadAgentState(): Promise<AgentUIState> {
   return callBridge<AgentUIState>(() => window.getInitialState?.());
 }
 
+export async function refreshAgentStatus(): Promise<AgentActionResult> {
+  return callBridge<AgentActionResult>(() => window.refreshAgentStatus?.());
+}
+
 export async function refreshAgentOnline(): Promise<boolean> {
-  const data = await callBridge<AgentActionResult>(() => window.refreshAgentStatus?.());
+  const data = await refreshAgentStatus();
   return Boolean(data.online);
 }
 
 export async function saveAgentSettings(payload: AgentSavePayload): Promise<AgentActionResult> {
   return callBridge<AgentActionResult>(() => window.saveSettingsGo?.(JSON.stringify(payload)));
+}
+
+export function agentStateToSavePayload(state: AgentUIState, overrides: Partial<AgentSavePayload> = {}): AgentSavePayload {
+  return {
+    server_url: overrides.server_url ?? state.server_url,
+    device_name: overrides.device_name ?? state.device_name,
+    default_quality: overrides.default_quality ?? state.default_quality,
+    clipboard_enabled: overrides.clipboard_enabled ?? state.clipboard_enabled,
+    download_dir: overrides.download_dir ?? state.download_dir,
+    auto_accept: overrides.auto_accept ?? state.auto_accept,
+    launch_at_startup: overrides.launch_at_startup ?? state.launch_at_startup,
+    start_minimized: overrides.start_minimized ?? state.start_minimized,
+    permanent_password: overrides.permanent_password ?? '',
+    clear_permanent_password: overrides.clear_permanent_password ?? false,
+    agent_enabled: overrides.agent_enabled ?? state.agent_enabled,
+    otp_idle_refresh_minutes: overrides.otp_idle_refresh_minutes ?? state.otp_idle_refresh_minutes,
+    close_to_tray: overrides.close_to_tray ?? state.close_to_tray ?? true,
+  };
+}
+
+export async function reconnectAgent(): Promise<AgentActionResult> {
+  return callBridge<AgentActionResult>(() => window.reconnectAgentGo?.());
+}
+
+export async function syncAgentServerUrl(serverUrl: string): Promise<AgentActionResult> {
+  const state = await loadAgentState();
+  const normalized = serverUrl.replace(/\/$/, '');
+  const current = state.server_url.replace(/\/$/, '');
+  if (current === normalized) {
+    if (state.agent_enabled && !state.online) {
+      return reconnectAgent();
+    }
+    return { ok: true, state, online: state.online };
+  }
+  const saved = await saveAgentSettings(agentStateToSavePayload(state, { server_url: normalized }));
+  if (saved.ok && saved.state?.agent_enabled && !saved.online) {
+    return reconnectAgent();
+  }
+  return saved;
 }
 
 export async function generateAgentOTP(): Promise<AgentActionResult> {

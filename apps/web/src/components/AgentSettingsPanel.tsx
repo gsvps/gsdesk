@@ -496,13 +496,23 @@ export default function AgentSettingsPanel() {
 
 
       <div className="flex justify-end">
-
-        <button type="button" disabled={busy} className="btn-primary px-5" onClick={() => void handleSave()}>
-
-          {busy ? '保存中...' : '保存设置'}
-
-        </button>
-
+        {(() => {
+          const canSave = Boolean(state.server_url.trim());
+          return (
+            <button
+              type="button"
+              disabled={busy || !canSave}
+              className={
+                canSave
+                  ? 'btn-primary px-5'
+                  : 'rounded-lg bg-slate-700 px-5 py-2 text-sm font-semibold text-slate-400 cursor-not-allowed'
+              }
+              onClick={() => void handleSave()}
+            >
+              {busy ? '保存中…' : '保存设置'}
+            </button>
+          );
+        })()}
       </div>
 
     </div>

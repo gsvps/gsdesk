@@ -6,7 +6,8 @@ import {
   getAgentOTPStatus,
   hasAgentBridge,
   loadAgentState,
-  refreshAgentOnline,
+  reconnectAgent,
+  refreshAgentStatus,
   saveAgentSettings,
   type AgentSavePayload,
   type AgentUIState,
@@ -55,7 +56,10 @@ export default function LocalDevicePanel() {
         setState(data);
         setOnline(data.online);
         void refreshOTP();
-        void refreshAgentOnline().then(setOnline);
+        void refreshAgentStatus().then((data) => {
+          setOnline(Boolean(data.online));
+          if (data.state) setState(data.state);
+        });
       })
       .catch((err) => showStatus(String(err), 'error'));
   }, [bridge, refreshOTP, showStatus]);
@@ -64,7 +68,10 @@ export default function LocalDevicePanel() {
     if (!bridge) return;
     const otpTimer = setInterval(() => void refreshOTP(), 15000);
     const onlineTimer = setInterval(() => {
-      void refreshAgentOnline().then(setOnline);
+      void refreshAgentStatus().then((data) => {
+        setOnline(Boolean(data.online));
+        if (data.state) setState(data.state);
+      });
     }, 3000);
     return () => {
       clearInterval(otpTimer);
@@ -104,8 +111,9 @@ export default function LocalDevicePanel() {
     setState(next);
     try {
       await persistSettings(next, enabled ? '已启用本机被控' : '已关闭本机被控');
-      const isOnline = await refreshAgentOnline();
-      setOnline(isOnline);
+      const refreshed = await refreshAgentStatus();
+      setOnline(Boolean(refreshed.online));
+      if (refreshed.state) setState(refreshed.state);
       void refreshOTP();
     } catch (err) {
       setState(state);
@@ -117,9 +125,17 @@ export default function LocalDevicePanel() {
 
   async function handleRefresh() {
     try {
-      const next = await refreshAgentOnline();
-      setOnline(next);
-      showStatus(next ? '本机已连接服务器。' : '本机未连接服务器。', next ? 'success' : '');
+      const data = await reconnectAgent();
+      setOnline(Boolean(data.online));
+      if (data.state) setState(data.state);
+      const next = Boolean(data.state?.online);
+      if (next) {
+        showStatus('本机已连接服务器。', 'success');
+      } else if (data.state?.last_error) {
+        showStatus(`本机未连接：${data.state.last_error}`, 'error');
+      } else {
+        showStatus('本机未连接服务器，正在后台重试…', '');
+      }
     } catch (err) {
       showStatus(String(err), 'error');
     }
@@ -130,7 +146,16 @@ export default function LocalDevicePanel() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-medium text-white">本机</h3>
-          <p className="mt-1 text-sm text-slate-400">本机 Agent 连上 Worker 后可被远程连接（与控制器令牌无关）</p>
+          <p className="mt-1 text-sm text-slate-400">
+            本机 Agent 通过 WebSocket 连上 Worker 后可被远程连接（与控制器令牌无关）。当前服务器：
+            <span className="ml-1 font-mono text-sky-300">{state.server_url || '未配置'}</span>
+          </p>
+          {!state.device_id && state.agent_enabled && state.last_error && (
+            <p className="mt-1 text-xs text-red-300">连接失败：{state.last_error}</p>
+          )}
+          {!state.device_id && state.agent_enabled && !state.last_error && (
+            <p className="mt-1 text-xs text-amber-300">设备尚未注册，正在尝试连接服务器…</p>
+          )}
         </div>
         <Switch checked={state.agent_enabled} onChange={(v) => void handleAgentToggle(v)} label="允许被控" />
       </div>

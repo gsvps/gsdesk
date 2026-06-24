@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/clouddesk/agent/internal/netutil"
 	"github.com/gorilla/websocket"
 )
 
@@ -108,7 +109,11 @@ func (c *Client) dialOnce() error {
 	q.Set("token", c.deviceToken)
 	u.RawQuery = q.Encode()
 
-	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 10 * time.Second,
+		Proxy:            netutil.ProxyFunc,
+	}
+	conn, _, err := dialer.Dial(u.String(), nil)
 	if err != nil {
 		return err
 	}

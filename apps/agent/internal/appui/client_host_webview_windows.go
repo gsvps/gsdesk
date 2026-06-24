@@ -60,7 +60,7 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 	}()
 
 	mux := http.NewServeMux()
-	mountClientHandlers(mux, cfg.ServerURL)
+	mountClientHandlers(mux, cfg)
 
 	ln, port, err := listenLocalUI()
 	if err != nil {
@@ -148,8 +148,25 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 
 	w.Bind("refreshAgentStatus", func() string {
 		agent := agentView()
-		online := agent != nil && agent.IsOnline()
-		return mustJSON(actionResult{OK: true, Online: online})
+		if agent == nil {
+			state := buildUIState(cfg, nil)
+			return mustJSON(actionResult{OK: true, Online: false, State: &state})
+		}
+		state := buildUIState(cfg, agent)
+		return mustJSON(actionResult{OK: true, Online: state.Online, State: &state})
+	})
+
+	w.Bind("reconnectAgentGo", func() string {
+		agent := agentView()
+		if agent == nil {
+			return mustJSON(actionResult{OK: false, Error: "Agent 服务未就绪"})
+		}
+		settings := cfg.Settings.Normalized()
+		if settings.AgentEnabledOn() {
+			agent.ForceReconnect()
+		}
+		state := buildUIState(cfg, agent)
+		return mustJSON(actionResult{OK: true, Online: state.Online, State: &state, Message: "正在连接…"})
 	})
 
 	w.Bind("copyText", func(text string) string {

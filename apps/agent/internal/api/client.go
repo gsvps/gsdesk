@@ -8,6 +8,9 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/clouddesk/agent/internal/netutil"
 )
 
 type Client struct {
@@ -17,7 +20,11 @@ type Client struct {
 }
 
 func New(baseURL, deviceToken string) *Client {
-	return &Client{baseURL: baseURL, deviceToken: deviceToken, http: &http.Client{}}
+	return &Client{
+		baseURL:     baseURL,
+		deviceToken: deviceToken,
+		http:        netutil.NewHTTPClient(15 * time.Second),
+	}
 }
 
 type apiResponse[T any] struct {

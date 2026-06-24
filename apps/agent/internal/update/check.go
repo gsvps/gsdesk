@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/clouddesk/agent/internal/netutil"
 	"github.com/clouddesk/agent/internal/version"
 )
 
@@ -53,7 +54,7 @@ func Check(serverURL string) Result {
 	query.Set("version", current)
 	endpoint := base + "/api/client/update?" + query.Encode()
 
-	client := &http.Client{Timeout: 15 * time.Second}
+	client := netutil.NewHTTPClient(15 * time.Second)
 	resp, err := client.Get(endpoint)
 	if err != nil {
 		return Result{

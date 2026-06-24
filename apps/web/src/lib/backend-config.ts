@@ -56,10 +56,10 @@ export async function testBackendConnection(apiBase: string): Promise<{ ok: bool
     return { ok: true, message: '将使用当前页面同源或开发代理' };
   }
   try {
-    const res = await fetch(`${base}/api/health`);
+    const res = await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(12000) });
     const body = (await res.json()) as {
       success?: boolean;
-      data?: { status?: string; backend?: string; app?: string };
+      data?: { status?: string; backend?: string; app?: string; db_ready?: boolean };
       error?: { message?: string };
     };
     if (!res.ok || body.success === false) {
@@ -67,6 +67,14 @@ export async function testBackendConnection(apiBase: string): Promise<{ ok: bool
     }
     const kind = body.data?.backend ?? 'unknown';
     const app = body.data?.app ?? 'CloudDesk';
+    const dbReady = body.data?.db_ready;
+    if (dbReady === false) {
+      return {
+        ok: false,
+        message: 'Worker 已连通，但 D1 数据库未初始化。请在项目根目录运行: npm run db:migrate',
+        backend: kind,
+      };
+    }
     return { ok: true, message: `已连接 ${app}（${kind}）`, backend: kind };
   } catch {
     return { ok: false, message: `无法连接 ${base}` };

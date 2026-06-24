@@ -57,10 +57,16 @@ export default function ControllerTokenSettings() {
     }
   }
 
+  const tokenFilled = Boolean(value.trim());
+
   return (
     <section className="rounded-xl border border-slate-700 bg-slate-900/60 p-5">
       <h4 className="font-medium text-slate-200">控制器令牌</h4>
-      <p className="mt-1 text-sm text-slate-400">与 Worker 的 CONTROLLER_JWT_SECRET 一致，用于远程连接验证</p>
+      <p className="mt-1 text-sm text-slate-400">
+        直接粘贴 wrangler.toml <code className="text-sky-300">[vars]</code> 里的{' '}
+        <code className="text-sky-300">CONTROLLER_JWT_SECRET</code> 明文即可（无需自己生成 JWT）。须先在「后端/加速节点」保存
+        Worker 地址。
+      </p>
       {postInstall && !tokenVerified && (
         <p className="mt-2 rounded-lg border border-sky-800/60 bg-sky-950/40 px-3 py-2 text-sm text-sky-200">
           安装完成。请在此填写控制器令牌并保存，验证通过后才能查询远程设备在线状态。
@@ -84,8 +90,17 @@ export default function ControllerTokenSettings() {
           <button type="button" className="shrink-0 rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800" onClick={() => void handleCopy()}>
             复制
           </button>
-          <button type="button" disabled={busy} className="shrink-0 btn-primary" onClick={() => void handleSave()}>
-            保存
+          <button
+            type="button"
+            disabled={busy || !tokenFilled}
+            className={
+              tokenFilled
+                ? 'shrink-0 btn-primary'
+                : 'shrink-0 rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-slate-400 cursor-not-allowed'
+            }
+            onClick={() => void handleSave()}
+          >
+            {busy ? '保存中…' : '保存'}
           </button>
         </div>
       </label>

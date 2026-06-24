@@ -1,11 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { loadAgentState, hasAgentBridge } from './agent-bridge';
+import { applyBackendToRuntime, loadBackendConfig } from './backend-config';
 import {
   clearControllerTokenBridge,
   hasControllerTokenBridge,
   loadControllerTokenFromBridge,
   saveControllerTokenToBridge,
 } from './controller-token-bridge';
-import { apiFetch, getStoredToken, setStoredToken } from './api';
+import { getStoredToken, setStoredToken } from './api';
+import { getRuntimeConfig } from './runtime-config';
 
 interface AuthContextValue {
   token: string | null;
@@ -16,21 +19,85 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function isNetworkError(message: string): boolean {
-  return (
-    message.includes('无法连接服务器') ||
-    message.includes('Failed to fetch') ||
-    message.includes('NetworkError') ||
-    message.includes('服务器响应异常')
-  );
+interface VerifyResult {
+  ok: boolean;
+  error?: string;
+  /** 网络/配置问题：保留已保存的令牌 */
+  recoverable?: boolean;
 }
 
-async function verifyStoredToken(): Promise<boolean> {
+async function resolveControllerVerifyBase(): Promise<string> {
+  if (hasAgentBridge()) {
+    try {
+      const state = await loadAgentState();
+      const agentBase = state.server_url?.replace(/\/$/, '') ?? '';
+      if (agentBase) return agentBase;
+    } catch {
+      /* fall through */
+    }
+  }
+
+  const runtimeBase = getRuntimeConfig().apiBase.replace(/\/$/, '');
+  if (runtimeBase) return runtimeBase;
+
+  return applyBackendToRuntime(loadBackendConfig());
+}
+
+async function verifyControllerToken(token: string): Promise<VerifyResult> {
+  const bearer = token.trim();
+  if (!bearer) return { ok: false, error: '令牌为空' };
+
+  const base = await resolveControllerVerifyBase();
+  if (!base) {
+    return {
+      ok: false,
+      recoverable: true,
+      error: '请先在「后端/加速节点」填写 Worker 地址并保存，再验证控制器令牌',
+    };
+  }
+
   try {
-    await apiFetch<{ verified: boolean }>('/api/controller/verify');
-    return true;
+    const res = await fetch(`${base}/api/controller/verify`, {
+      headers: {
+        Authorization: `Bearer ${bearer}`,
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    let body: { success?: boolean; error?: { message?: string } };
+    try {
+      body = (await res.json()) as typeof body;
+    } catch {
+      return {
+        ok: false,
+        recoverable: true,
+        error: `服务器响应异常（HTTP ${res.status}，${base}）`,
+      };
+    }
+
+    if (!body.success) {
+      const msg = body.error?.message ?? '验证失败';
+      if (res.status === 401 || msg.includes('无效') || msg.includes('未配置')) {
+        return {
+          ok: false,
+          recoverable: false,
+          error:
+            `控制器令牌与线上 Worker 不一致（验证地址：${base}）。` +
+            '请填写 wrangler.toml [vars] 中 CONTROLLER_JWT_SECRET 的明文（不是 JWT 字符串）；' +
+            '若在 Cloudflare 控制台单独改过密钥，须与控制台一致，且修改后需重新 deploy。',
+        };
+      }
+      return { ok: false, recoverable: res.status >= 500, error: msg };
+    }
+
+    return { ok: true };
   } catch {
-    return false;
+    return {
+      ok: false,
+      recoverable: true,
+      error: `无法连接 ${base}。请确认 Worker 已部署，且「后端/加速节点」中的 API 地址与 Agent 服务器地址一致`,
+    };
   }
 }
 
@@ -86,14 +153,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTokenState(stored);
       }
 
-      const ok = await verifyStoredToken();
+      const result = await verifyControllerToken(stored);
       if (cancelled) return;
 
-      if (ok) {
-        setTokenVerified(true);
-      } else {
-        setTokenVerified(false);
-      }
+      setTokenVerified(result.ok);
       setLoading(false);
     }
 
@@ -115,24 +178,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await persistToken(trimmed);
     setTokenState(trimmed);
 
-    try {
-      const ok = await verifyStoredToken();
-      if (!ok) {
-        setTokenVerified(false);
-        throw new Error('控制器令牌无效，请确认与 Worker 的 CONTROLLER_JWT_SECRET 一致');
-      }
-      setTokenVerified(true);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : '令牌验证失败';
-      if (isNetworkError(message)) {
-        setTokenVerified(false);
-        throw new Error('令牌已保存，但暂时无法连接服务器验证，请检查 Agent 服务器地址');
+    const result = await verifyControllerToken(trimmed);
+    if (!result.ok) {
+      setTokenVerified(false);
+      if (result.recoverable) {
+        throw new Error(result.error ?? '令牌已保存，但暂时无法连接服务器验证');
       }
       await persistToken(null);
       setTokenState(null);
-      setTokenVerified(false);
-      throw err instanceof Error ? err : new Error(message);
+      throw new Error(result.error ?? '控制器令牌无效');
     }
+    setTokenVerified(true);
   }, []);
 
   const value = useMemo<AuthContextValue>(
