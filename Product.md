@@ -1,6 +1,6 @@
 # CloudDesk 开发文档
 
-与 [README.md](README.md) 对齐的当前实现说明（**v0.1.4**）。
+与 [README.md](README.md) 对齐的当前实现说明（**v0.1.5**）。
 
 ---
 
@@ -93,7 +93,7 @@ CloudDesk/
 |------|------|------|
 | `WEB_APP_PATH` | `/app` | 手机/浏览器控制入口；修改后须 `build:web:app` 再 deploy |
 | `CONTROLLER_JWT_SECRET` | 开发默认 | 控制器 JWT 密钥，生产必换 |
-| `CLIENT_LATEST_VERSION` | `0.1.4` | 客户端版本号（更新检查） |
+| `CLIENT_LATEST_VERSION` | `0.1.5` | 客户端版本号（更新检查） |
 | `CLIENT_DOWNLOAD_URL` | GitHub Releases | exe 下载地址 |
 
 ### VPS（`apps/server/.env`）
@@ -201,7 +201,7 @@ GET    /ws/session/:sessionId
 
 ## 10. Windows 客户端
 
-- 下载：[GitHub Releases v0.1.4](https://github.com/gsvps/cloud-desk/releases/tag/v0.1.4)（`latest` 始终指向最新）
+- 下载：[GitHub Releases v0.1.5](https://github.com/gsvps/cloud-desk/releases/tag/v0.1.5)（`latest` 始终指向最新）
 - 三栏 UI：本机 / 设置 / 远程控制
 - 配置：`localStorage`（API、JWT）+ `%USERPROFILE%\.clouddesk\config.json`（Agent）
 - 编译：`apps/agent/build-client.ps1`（先 `npm run build -w @clouddesk/web`）

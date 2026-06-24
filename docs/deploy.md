@@ -75,7 +75,7 @@ wrangler deploy --config wrangler.toml --name cloud-desk
 |------|------|------|
 | `WEB_APP_PATH` | `/app` | 手机/浏览器控制入口路径 |
 | `CONTROLLER_JWT_SECRET` | 开发默认 | **生产必换**为强随机字符串 |
-| `CLIENT_LATEST_VERSION` | `0.1.4` | 客户端版本（更新检查） |
+| `CLIENT_LATEST_VERSION` | `0.1.5` | 客户端版本（更新检查） |
 | `CLIENT_DOWNLOAD_URL` | GitHub Releases | exe 下载链接 |
 
 ### 修改手机入口路径
@@ -125,8 +125,8 @@ $env:CLOUDDESK_SERVER = "https://your-worker.example.com"
 exe 不进 git，通过 GitHub Releases 分发：
 
 ```bash
-git tag v0.1.4
-git push origin v0.1.4
+git tag v0.1.5
+git push origin v0.1.5
 ```
 
 CI 会自动编译 `clouddesk-client.exe` 并附到 Release。`CLIENT_DOWNLOAD_URL` 默认指向 `releases/latest/download/…`。
