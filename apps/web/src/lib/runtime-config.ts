@@ -31,11 +31,12 @@ export function isDesktopClient(): boolean {
 }
 
 export function webAppBasename(): string {
-  const base = import.meta.env.BASE_URL;
-  if (base && base !== '/') {
-    return base.replace(/\/+$/, '');
+  const raw = import.meta.env.BASE_URL ?? '/';
+  // 嵌入 exe 时 Vite base 为 `./`，不能作为 BrowserRouter basename
+  if (!raw || raw === '/' || raw === './' || raw === '.') {
+    return '/';
   }
-  return '/';
+  return raw.replace(/\/+$/, '') || '/';
 }
 
 export function isHostedWebApp(): boolean {
