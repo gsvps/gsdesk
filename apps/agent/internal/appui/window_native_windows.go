@@ -37,6 +37,14 @@ func showNativeWindow(w interface{ Window() unsafe.Pointer }) {
 	showWindow(nativeWindowHandle(w), swShow)
 }
 
+func bringNativeWindowToFront(w interface{ Window() unsafe.Pointer }) {
+	hwnd := nativeWindowHandle(w)
+	showWindow(hwnd, swRestore)
+	showWindow(hwnd, swShow)
+	procSetForegroundWindow := user32.NewProc("SetForegroundWindow")
+	procSetForegroundWindow.Call(uintptr(hwnd))
+}
+
 func setNativeWindowMaximized(w interface{ Window() unsafe.Pointer }, maximized bool) {
 	cmd := swRestore
 	if maximized {

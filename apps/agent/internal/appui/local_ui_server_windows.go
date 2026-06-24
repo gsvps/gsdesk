@@ -103,6 +103,7 @@ func showOrRestoreActiveWindow() bool {
 	}
 	w.Dispatch(func() {
 		showNativeWindow(w)
+		bringNativeWindowToFront(w)
 	})
 	return true
 }

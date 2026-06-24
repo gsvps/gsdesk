@@ -12,6 +12,10 @@ import (
 )
 
 func mountClientHandlers(mux *http.ServeMux, cfg *config.Config) {
+	mux.HandleFunc("/__clouddesk/raise", func(w http.ResponseWriter, r *http.Request) {
+		showOrRestoreActiveWindow()
+		w.WriteHeader(http.StatusNoContent)
+	})
 	mux.Handle("/api/", newAPIProxy(cfg))
 	mux.Handle("/", embeddedUIHandler())
 }

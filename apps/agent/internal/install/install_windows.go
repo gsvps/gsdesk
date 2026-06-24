@@ -44,7 +44,7 @@ func GetState() State {
 	return State{
 		Installed:   root != "",
 		InstallDir:  root,
-		DefaultDir:  config.DefaultInstallDir,
+		DefaultDir:  config.DefaultInstallDirectory(),
 		RunningFrom: config.RunningFromInstallDir(),
 		NeedsSetup:  config.NeedsInstallSetup(),
 	}
@@ -52,7 +52,7 @@ func GetState() State {
 
 func BrowseInstallDir(current string) string {
 	if strings.TrimSpace(current) == "" {
-		current = config.DefaultInstallDir
+		current = config.DefaultInstallDirectory()
 	}
 	// Native folder picker is bound in appui; fallback to default.
 	return current
@@ -73,7 +73,7 @@ func RunInstall(targetDir string) Result {
 func RunInstallWithOptions(req InstallRequest, onProgress ProgressFunc) Result {
 	targetDir := strings.TrimSpace(req.InstallDir)
 	if targetDir == "" {
-		targetDir = config.DefaultInstallDir
+		targetDir = config.DefaultInstallDirectory()
 	}
 	targetDir = filepath.Clean(targetDir)
 

@@ -10,32 +10,60 @@ import (
 // DefaultInstallDir is the recommended installation directory on Windows.
 const DefaultInstallDir = `D:\CloudDesk`
 
+func resolveDefaultInstallDir() string {
+	if _, err := os.Stat(`D:\`); err == nil {
+		return DefaultInstallDir
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return `C:\CloudDesk`
+	}
+	return filepath.Join(home, "CloudDesk")
+}
+
 type installMeta struct {
 	Root    string `json:"root"`
 	Version string `json:"version,omitempty"`
 }
 
+func readInstallMeta(path string) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	var meta installMeta
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		return ""
+	}
+	root := strings.TrimSpace(meta.Root)
+	if root == "" {
+		root = filepath.Dir(path)
+	}
+	return filepath.Clean(root)
+}
+
 func readInstallRoot() string {
-	candidates := []string{
-		filepath.Join(DefaultInstallDir, "install.json"),
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
 	}
-	if exe, err := os.Executable(); err == nil {
-		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "install.json"))
+	exeDir, err := filepath.Abs(filepath.Dir(exe))
+	if err != nil {
+		return ""
 	}
-	for _, marker := range candidates {
-		raw, err := os.ReadFile(marker)
-		if err != nil {
-			continue
+
+	if root := readInstallMeta(filepath.Join(exeDir, "install.json")); root != "" {
+		return root
+	}
+
+	defaultRoot, err := filepath.Abs(resolveDefaultInstallDir())
+	if err != nil {
+		return ""
+	}
+	if strings.EqualFold(filepath.Clean(exeDir), filepath.Clean(defaultRoot)) {
+		if root := readInstallMeta(filepath.Join(defaultRoot, "install.json")); root != "" {
+			return root
 		}
-		var meta installMeta
-		if err := json.Unmarshal(raw, &meta); err != nil {
-			continue
-		}
-		root := strings.TrimSpace(meta.Root)
-		if root == "" {
-			root = filepath.Dir(marker)
-		}
-		return filepath.Clean(root)
 	}
 	return ""
 }
@@ -48,7 +76,7 @@ func InstallRoot() string {
 // DataDir stores config.json, device keys, etc.
 func DataDir() (string, error) {
 	var dir string
-	if root := readInstallRoot(); root != "" {
+	if root := readInstallRoot(); root != "" && RunningFromInstallDir() {
 		dir = filepath.Join(root, "data")
 	} else {
 		home, err := os.UserHomeDir()
@@ -65,7 +93,7 @@ func DataDir() (string, error) {
 
 // LogDir stores agent.log.
 func LogDir() (string, error) {
-	if root := readInstallRoot(); root != "" {
+	if root := readInstallRoot(); root != "" && RunningFromInstallDir() {
 		dir := filepath.Join(root, "logs")
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return "", err
@@ -73,6 +101,11 @@ func LogDir() (string, error) {
 		return dir, nil
 	}
 	return DataDir()
+}
+
+// DefaultInstallDirectory returns the recommended install path for this machine.
+func DefaultInstallDirectory() string {
+	return resolveDefaultInstallDir()
 }
 
 // RunningFromInstallDir reports whether the current executable lives in InstallRoot.

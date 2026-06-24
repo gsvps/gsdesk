@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/clouddesk/agent/internal/config"
 	"github.com/clouddesk/agent/internal/install"
-	"github.com/clouddesk/agent/internal/tray"
 	"github.com/clouddesk/agent/internal/update"
 	"github.com/sqweek/dialog"
 	webview "github.com/webview/webview_go"
@@ -97,8 +98,11 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 	w.Init(`document.documentElement.style.background='#0f172a';document.body.style.background='#0f172a';document.body.style.color='#e2e8f0';`)
 
 	if opts.hideUntilReady {
-		hideNativeWindow(w)
-		startUIReadyFallback(w, opts.uiReadyTimeout)
+		presentClientWindow(w, opts)
+	} else {
+		showNativeWindow(w)
+		bringNativeWindowToFront(w)
+		setActiveWindow(w)
 	}
 
 	agentView := func() AgentView {
@@ -139,6 +143,7 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 			setActiveWindow(w)
 			installWindowCloseHook(w, cfg)
 			showNativeWindow(w)
+			bringNativeWindowToFront(w)
 		})
 		return mustJSON(actionResult{OK: true})
 	})
@@ -351,74 +356,54 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 }
 
 func runBootstrapClient(cfg *config.Config, factory AgentFactory) error {
-	holder := newAgentHolder(nil, nil)
-	trayStarted := false
-
-	return runClientWindow(cfg, holder, "install", true, clientWindowOpts{
+	_ = factory
+	return runClientWindow(cfg, newAgentHolder(nil, nil), "install", true, clientWindowOpts{
 		hideUntilReady: false,
 		onInstallSuccess: func(w webview.WebView, homeURL string) error {
 			newCfg, err := config.Load()
 			if err != nil {
 				return err
 			}
-			*cfg = *newCfg
-
-			agent, save, err := factory(newCfg)
-			if err != nil {
-				return err
+			installDir := newCfg.InstallPath()
+			if installDir == "" {
+				return fmt.Errorf("安装目录无效")
 			}
-			holder.set(agent, save)
+			installedExe := filepath.Join(installDir, "CloudDesk.exe")
 
-			if av := holder.view(); av != nil {
-				go func() {
-					_ = av.RefreshOTP()
-				}()
-			}
-
-			if !trayStarted {
-				trayStarted = true
-				go runTrayLoop(holder, cfg)
-			}
-
-			w.Init(`sessionStorage.setItem('clouddesk:post-install','1')`)
-			w.Navigate(homeURL + "settings")
+			go func() {
+				time.Sleep(400 * time.Millisecond)
+				cmd := exec.Command(installedExe)
+				cmd.Dir = installDir
+				if err := cmd.Start(); err != nil {
+					showError("安装完成，但无法启动 CloudDesk:\n" + err.Error() + "\n\n请手动运行:\n" + installedExe)
+					return
+				}
+				exitApplication(nil)
+			}()
 			return nil
 		},
 	})
 }
 
+func presentClientWindow(w webview.WebView, opts clientWindowOpts) {
+	if opts.hideUntilReady {
+		hideNativeWindow(w)
+		startUIReadyFallback(w, opts.uiReadyTimeout)
+		return
+	}
+	showNativeWindow(w)
+	bringNativeWindowToFront(w)
+}
+
 func startUIReadyFallback(w webview.WebView, timeout time.Duration) {
 	if timeout <= 0 {
-		timeout = 15 * time.Second
+		timeout = 5 * time.Second
 	}
 	go func() {
 		time.Sleep(timeout)
 		w.Dispatch(func() {
 			showNativeWindow(w)
+			bringNativeWindowToFront(w)
 		})
 	}()
-}
-
-func runTrayLoop(holder *agentHolder, cfg *config.Config) {
-	agent := holder.view()
-	if agent == nil {
-		return
-	}
-	tray.Run(tray.Options{
-		DeviceID: agent.DeviceID(),
-		IsOnline: agent.IsOnline,
-		OnOpenMain: func() {
-			ShowClientWindow(cfg, holder.saveFn(), holder.view(), "control")
-		},
-		OnSettings: func() {
-			ShowClientWindow(cfg, holder.saveFn(), holder.view(), "settings")
-		},
-		OnQuit: func() {
-			QuitApplication(func() {
-				if closer, ok := agent.(interface{ Close() }); ok {
-					closer.Close()
-				}
-			})
-		},
-	})
 }

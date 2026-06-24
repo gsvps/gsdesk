@@ -19,7 +19,7 @@ func runPlatform(a *agent.Agent) {
 
 	log.Printf("CloudDesk Client running, device=%s", a.DeviceID())
 	cfg := a.Config()
-	if cfg != nil && !cfg.Settings.StartMinimized {
+	if cfg != nil {
 		appui.ShowClientWindow(cfg, a.ApplyConfig, a, "control")
 	}
 	tray.Run(tray.Options{

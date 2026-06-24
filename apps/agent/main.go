@@ -25,6 +25,11 @@ func main() {
 	platform.EnableDPIAwareness()
 	appui.EnsureWebViewEnvironment()
 
+	if appui.TryActivateExistingInstance() {
+		log.Print("CloudDesk already running, restored existing window")
+		return
+	}
+
 	if err := appui.EnsureDesktopRuntime(); err != nil {
 		fatalStartup("无法准备运行环境:\n\n" + err.Error())
 		return
@@ -41,9 +46,6 @@ func main() {
 			a, err := agent.New(c)
 			if err != nil {
 				return nil, nil, err
-			}
-			if err := a.ConnectIfEnabled(); err != nil {
-				log.Printf("agent connect: %v", err)
 			}
 			return a, a.ApplyConfig, nil
 		}); err != nil {
