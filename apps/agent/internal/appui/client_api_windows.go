@@ -16,7 +16,6 @@ func QuitClientWindow() {
 	quitActiveClientWindow()
 }
 
-// ShowClientWindow opens the unified CloudDesk client UI (control + agent tabs).
 func ShowClientWindow(cfg *config.Config, save SaveFunc, agent AgentView, tab string) {
 	showClientWindow(cfg, save, agent, tab, false)
 }

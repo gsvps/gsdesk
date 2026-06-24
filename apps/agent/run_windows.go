@@ -32,8 +32,7 @@ func runPlatform(a *agent.Agent) {
 			appui.ShowClientWindow(a.Config(), a.ApplyConfig, a, "settings")
 		},
 		OnQuit: func() {
-			appui.QuitClientWindow()
-			a.Close()
+			appui.QuitApplication(a.Close)
 		},
 	})
 }

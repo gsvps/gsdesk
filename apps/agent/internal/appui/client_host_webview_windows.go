@@ -68,7 +68,9 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 	}
 
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	registerUIServer(srv)
 	go func() { _ = srv.Serve(ln) }()
+	defer shutdownUIServer()
 
 	homeURL := fmt.Sprintf("http://127.0.0.1:%d/", port)
 	startURL := homeURL
@@ -392,10 +394,11 @@ func runTrayLoop(holder *agentHolder, cfg *config.Config) {
 			ShowClientWindow(cfg, holder.saveFn(), holder.view(), "settings")
 		},
 		OnQuit: func() {
-			quitActiveClientWindow()
-			if closer, ok := agent.(interface{ Close() }); ok {
-				closer.Close()
-			}
+			QuitApplication(func() {
+				if closer, ok := agent.(interface{ Close() }); ok {
+					closer.Close()
+				}
+			})
 		},
 	})
 }

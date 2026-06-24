@@ -3,14 +3,27 @@
 package appui
 
 import (
+	"context"
 	"fmt"
 	"net"
+	"net/http"
+	"os"
 	"sync"
+	"time"
 )
 
 // DefaultLocalUIPort is the fixed loopback port for the embedded UI server.
 // Using a stable port avoids repeated Windows Firewall prompts on each launch.
 const DefaultLocalUIPort = 19527
+
+var (
+	activeWindowMu sync.Mutex
+	activeWindow   nativeWindow
+	windowHidden   bool
+
+	uiServerMu sync.Mutex
+	uiHTTPServer *http.Server
+)
 
 func listenLocalUI() (net.Listener, int, error) {
 	fixed := fmt.Sprintf("127.0.0.1:%d", DefaultLocalUIPort)
@@ -25,11 +38,34 @@ func listenLocalUI() (net.Listener, int, error) {
 	return ln, ln.Addr().(*net.TCPAddr).Port, nil
 }
 
-var (
-	activeWindowMu sync.Mutex
-	activeWindow   nativeWindow
-	windowHidden   bool
-)
+func registerUIServer(srv *http.Server) {
+	uiServerMu.Lock()
+	uiHTTPServer = srv
+	uiServerMu.Unlock()
+}
+
+func shutdownUIServer() {
+	uiServerMu.Lock()
+	srv := uiHTTPServer
+	uiHTTPServer = nil
+	uiServerMu.Unlock()
+	if srv == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = srv.Shutdown(ctx)
+}
+
+// QuitApplication closes the UI window, stops background services, and exits the process.
+func QuitApplication(closeAgent func()) {
+	quitActiveClientWindow()
+	shutdownUIServer()
+	if closeAgent != nil {
+		closeAgent()
+	}
+	os.Exit(0)
+}
 
 func setActiveWindow(w nativeWindow) {
 	activeWindowMu.Lock()
