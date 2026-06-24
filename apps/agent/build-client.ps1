@@ -1,4 +1,4 @@
-# Build CloudDesk client — browser UI (no WebView2 required)
+# Build CloudDesk client - browser UI (no WebView2 required)
 $ErrorActionPreference = "Stop"
 $AgentDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RootDir = Resolve-Path (Join-Path $AgentDir "..\..")
@@ -45,4 +45,4 @@ $env:CGO_ENABLED = "1"
 go build -ldflags "-H windowsgui" -o clouddesk-client.exe .
 Write-Host "Built: $AgentDir\clouddesk-client.exe" -ForegroundColor Green
 Write-Host "UI: system browser at http://127.0.0.1:19527 (no WebView2 install)" -ForegroundColor Cyan
-Write-Host "First run: browser opens at http://127.0.0.1:19527 — configure API and token in Settings" -ForegroundColor Cyan
+Write-Host "First run: open http://127.0.0.1:19527 and configure API/token in Settings" -ForegroundColor Cyan
