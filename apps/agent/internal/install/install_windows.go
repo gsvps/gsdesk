@@ -15,8 +15,10 @@ import (
 	"time"
 
 	"github.com/clouddesk/agent/internal/config"
+	"github.com/clouddesk/agent/internal/netutil"
 	"github.com/clouddesk/agent/internal/version"
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 const webView2BootstrapURL = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
@@ -159,6 +161,11 @@ func migrateLegacyData(targetDir string) error {
 }
 
 func ensureWebView2Runtime(packagesDir string, onProgress ProgressFunc) error {
+	return EnsureWebView2Runtime(packagesDir, onProgress)
+}
+
+// EnsureWebView2Runtime downloads and installs WebView2 when it is missing.
+func EnsureWebView2Runtime(packagesDir string, onProgress ProgressFunc) error {
 	if hasWebView2Runtime() {
 		report(onProgress, "WebView2 运行库已就绪", 82)
 		return nil
@@ -186,6 +193,11 @@ func ensureWebView2Runtime(packagesDir string, onProgress ProgressFunc) error {
 }
 
 func hasWebView2Runtime() bool {
+	return HasWebView2Runtime()
+}
+
+// HasWebView2Runtime reports whether the Edge WebView2 runtime is installed.
+func HasWebView2Runtime() bool {
 	paths := []string{
 		filepath.Join(os.Getenv("ProgramFiles(x86)"), "Microsoft", "EdgeWebView", "Application"),
 		filepath.Join(os.Getenv("ProgramFiles"), "Microsoft", "EdgeWebView", "Application"),
@@ -195,11 +207,22 @@ func hasWebView2Runtime() bool {
 			return true
 		}
 	}
+	key, err := registry.OpenKey(
+		registry.LOCAL_MACHINE,
+		`SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}`,
+		registry.QUERY_VALUE,
+	)
+	if err == nil {
+		defer key.Close()
+		if pv, _, err := key.GetStringValue("pv"); err == nil && pv != "" && pv != "0.0.0.0" {
+			return true
+		}
+	}
 	return false
 }
 
 func downloadFile(url, dest string, onProgress func(percent int)) error {
-	client := &http.Client{Timeout: 10 * time.Minute}
+	client := netutil.NewHTTPClient(10 * time.Minute)
 	resp, err := client.Get(url)
 	if err != nil {
 		return err

@@ -12,6 +12,11 @@ import (
 	"github.com/clouddesk/agent/internal/platform"
 )
 
+func fatalStartup(msg string) {
+	log.Print(msg)
+	appui.ShowError(msg)
+}
+
 func main() {
 	settingsFlag := flag.Bool("settings", false, "open CloudDesk client (device tab)")
 	flag.Parse()
@@ -19,9 +24,16 @@ func main() {
 	logsetup.Init()
 	platform.EnableDPIAwareness()
 	appui.EnsureWebViewEnvironment()
+
+	if err := appui.EnsureDesktopRuntime(); err != nil {
+		fatalStartup("无法准备运行环境:\n\n" + err.Error())
+		return
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("load config: %v", err)
+		fatalStartup("加载配置失败: " + err.Error())
+		return
 	}
 
 	if config.NeedsInstallSetup() {
@@ -35,7 +47,7 @@ func main() {
 			}
 			return a, a.ApplyConfig, nil
 		}); err != nil {
-			log.Fatalf("install: %v", err)
+			fatalStartup("安装向导启动失败: " + err.Error() + "\n\n请查看 logs/agent.log")
 		}
 		return
 	}
@@ -48,7 +60,7 @@ func main() {
 			}
 			return next.Save()
 		}, nil, "device"); err != nil {
-			log.Fatalf("client UI: %v", err)
+			fatalStartup("打开设置失败: " + err.Error())
 		}
 		return
 	}

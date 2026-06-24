@@ -173,12 +173,19 @@ func mustJSON(v any) string {
 }
 
 func showError(msg string) {
-	title, _ := syscall.UTF16PtrFromString("CloudDesk Agent")
+	showMessageBox(msg, 0x00000010)
+}
+
+func showInfo(msg string) {
+	showMessageBox(msg, 0x00000040)
+}
+
+func showMessageBox(msg string, icon uint32) {
+	title, _ := syscall.UTF16PtrFromString("CloudDesk")
 	text, _ := syscall.UTF16PtrFromString(msg)
 	user32 := syscall.NewLazyDLL("user32.dll")
 	messageBoxW := user32.NewProc("MessageBoxW")
-	const mbIconError = 0x00000010
-	messageBoxW.Call(0, uintptr(unsafe.Pointer(text)), uintptr(unsafe.Pointer(title)), mbIconError)
+	messageBoxW.Call(0, uintptr(unsafe.Pointer(text)), uintptr(unsafe.Pointer(title)), uintptr(icon))
 }
 
 func writeClipboard(text string) error {

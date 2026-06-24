@@ -38,3 +38,7 @@ func BrowseInstallDir(current string) string { return current }
 func RunInstallWithOptions(req InstallRequest, onProgress ProgressFunc) Result {
 	return Result{OK: false, Error: "install is only supported on Windows"}
 }
+
+func HasWebView2Runtime() bool { return true }
+
+func EnsureWebView2Runtime(packagesDir string, onProgress ProgressFunc) error { return nil }

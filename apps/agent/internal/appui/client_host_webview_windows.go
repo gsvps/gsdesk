@@ -25,6 +25,7 @@ var (
 
 type clientWindowOpts struct {
 	hideUntilReady   bool
+	uiReadyTimeout   time.Duration
 	onInstallSuccess func(w webview.WebView, homeURL string) error
 }
 
@@ -83,6 +84,12 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 
 	EnsureWebViewEnvironment()
 
+	defer func() {
+		if r := recover(); r != nil {
+			showError(fmt.Sprintf("窗口初始化失败: %v\n\n请确认已安装 Microsoft Edge WebView2 Runtime，并查看 logs/agent.log。", r))
+		}
+	}()
+
 	w := webview.New(false)
 	defer w.Destroy()
 	w.SetTitle("CloudDesk")
@@ -91,6 +98,7 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 
 	if opts.hideUntilReady {
 		hideNativeWindow(w)
+		startUIReadyFallback(w, opts.uiReadyTimeout)
 	}
 
 	agentView := func() AgentView {
@@ -347,7 +355,7 @@ func runBootstrapClient(cfg *config.Config, factory AgentFactory) error {
 	trayStarted := false
 
 	return runClientWindow(cfg, holder, "install", true, clientWindowOpts{
-		hideUntilReady: true,
+		hideUntilReady: false,
 		onInstallSuccess: func(w webview.WebView, homeURL string) error {
 			newCfg, err := config.Load()
 			if err != nil {
@@ -377,6 +385,18 @@ func runBootstrapClient(cfg *config.Config, factory AgentFactory) error {
 			return nil
 		},
 	})
+}
+
+func startUIReadyFallback(w webview.WebView, timeout time.Duration) {
+	if timeout <= 0 {
+		timeout = 15 * time.Second
+	}
+	go func() {
+		time.Sleep(timeout)
+		w.Dispatch(func() {
+			showNativeWindow(w)
+		})
+	}()
 }
 
 func runTrayLoop(holder *agentHolder, cfg *config.Config) {
