@@ -158,6 +158,7 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
           device_name: agentState.device_name,
           default_quality: agentState.default_quality,
           otp_idle_refresh_minutes: agentState.otp_idle_refresh_minutes,
+          auto_accept: agentState.auto_accept,
           clipboard_enabled: agentState.clipboard_enabled,
           download_dir: agentState.download_dir,
           launch_at_startup: false,
@@ -197,6 +198,7 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
       agentState?.device_name,
       agentState?.default_quality,
       agentState?.otp_idle_refresh_minutes,
+      agentState?.auto_accept,
       agentState?.clipboard_enabled,
       agentState?.download_dir,
     ],
@@ -340,7 +342,12 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
             />
           </label>
 
-          <div className={`border-t border-slate-800 ${compact ? 'pt-2' : 'pt-3'}`}>
+          <div className={`border-t border-slate-800 ${compact ? 'space-y-2 pt-2' : 'space-y-3 pt-3'}`}>
+            <Switch
+              checked={agentState.auto_accept}
+              onChange={(v) => setAgentState({ ...agentState, auto_accept: v })}
+              label="自动接受远程连接"
+            />
             <Switch
               checked={agentState.clipboard_enabled}
               onChange={(v) => setAgentState({ ...agentState, clipboard_enabled: v })}

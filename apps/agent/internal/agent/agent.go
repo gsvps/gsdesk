@@ -16,6 +16,7 @@ import (
 	"github.com/clouddesk/agent/internal/platform"
 	"github.com/clouddesk/agent/internal/signal"
 	"github.com/clouddesk/agent/internal/transfer"
+	"github.com/clouddesk/agent/internal/ui"
 	agentwebrtc "github.com/clouddesk/agent/internal/webrtc"
 )
 
@@ -271,7 +272,6 @@ func (a *Agent) register() error {
 
 	a.cfg.DeviceID = resp.DeviceID
 	a.cfg.DeviceToken = resp.DeviceToken
-	a.cfg.PairingToken = ""
 	a.deviceID = resp.DeviceID
 	if err := a.cfg.Save(); err != nil {
 		return err
@@ -382,6 +382,22 @@ func (a *Agent) handleConnectionRequest(msg signal.Message) {
 
 	log.Printf("connection request session=%s", msg.SessionID)
 	a.webrtc.CloseSession(msg.SessionID)
+
+	if a.cfg != nil && !a.cfg.Settings.AutoAccept {
+		if !ui.PromptAccept(msg.SessionID) {
+			if err := a.signal.Send(signal.Message{
+				Type:      "connection_reject",
+				SessionID: msg.SessionID,
+				DeviceID:  a.deviceID,
+			}); err != nil {
+				log.Printf("send connection_reject failed session=%s: %v", msg.SessionID, err)
+			} else {
+				log.Printf("connection rejected by user session=%s", msg.SessionID)
+			}
+			return
+		}
+	}
+
 	signature := ""
 	if msg.Nonce != "" {
 		sig, err := crypto.Sign(a.keys.PrivateKey, msg.Nonce)

@@ -41,6 +41,9 @@ export function createCoreApp() {
   app.get('/api/health', async (c) => {
     const dbReady = await ensureDatabaseReady(c.env.DB);
     const bootstrapError = getLastBootstrapError();
+    const secret = c.env.CONTROLLER_JWT_SECRET?.trim() ?? '';
+    const weakSecret =
+      !secret || secret === 'clouddesk-dev-controller-secret-change-me' || secret.length < 24;
     return jsonOk(c, {
       status: 'ok',
       backend: c.env.BACKEND_KIND ?? 'cloudflare',
@@ -48,6 +51,7 @@ export function createCoreApp() {
       version: latestClientVersion(c.env),
       db_ready: dbReady,
       db_error: dbReady ? undefined : bootstrapError,
+      security_warning: weakSecret ? '请设置强随机 CONTROLLER_JWT_SECRET（≥24 字符）' : undefined,
     });
   });
 

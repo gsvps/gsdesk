@@ -35,4 +35,4 @@ new_sqlite_classes = ["DeviceRoom", "SessionRoom"]
 [vars]
 CONTROLLER_JWT_SECRET = "clouddesk-dev-controller-secret-change-me"
 CLIENT_LATEST_VERSION = "0.1.0"
-CLIENT_DOWNLOAD_URL = "https://github.com/gsvps/cloud-desk/releases/latest"
+CLIENT_DOWNLOAD_URL = "https://github.com/gsvps/cloud-desk/releases/latest/download/clouddesk-client.exe"

@@ -4,7 +4,8 @@ import type { Env } from '../env';
 import { createDb } from '../db';
 import { devices } from '../db/schema';
 import { deviceAccessProtected, otpActive } from '../lib/device-access';
-import { generateNumericDeviceId } from '../lib/crypto';
+import { generateNumericDeviceId, validateEd25519PublicKey } from '../lib/crypto';
+import { checkRateLimit, rateLimitResponse } from '../lib/rate-limit';
 import { writeAuditLog } from '../lib/audit';
 import { ensureDatabaseReady } from '../lib/db-bootstrap';
 import { ensureSystemController } from '../lib/system-user';
@@ -54,6 +55,17 @@ device.post('/register', async (c) => {
 
   if (!deviceName || !hostname || !os || !publicKey) {
     return jsonFail(c, 'BAD_REQUEST', '缺少设备信息');
+  }
+
+  if (!(await validateEd25519PublicKey(publicKey))) {
+    return jsonFail(c, 'BAD_REQUEST', 'public_key 必须是有效的 Ed25519 公钥（base64）');
+  }
+
+  const ip = getClientIp(c);
+  const registerLimit = await checkRateLimit(c.env.KV, `register:${ip}`, 20, 3600);
+  if (!registerLimit.allowed) {
+    const rl = rateLimitResponse(registerLimit.retryAfterSec ?? 60);
+    return jsonFail(c, rl.code, rl.message, rl.status);
   }
 
   try {

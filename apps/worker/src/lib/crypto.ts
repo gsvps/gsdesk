@@ -53,7 +53,31 @@ export function generateId(prefix?: string): string {
 }
 
 export function generateNumericDeviceId(): string {
-  return String(Math.floor(10_000_000 + Math.random() * 90_000_000));
+  return String(secureRandomInt(10_000_000, 99_999_999));
+}
+
+/** 6 位数字 OTP（密码学安全）。 */
+export function secureOtpCode(): string {
+  return String(secureRandomInt(100_000, 999_999));
+}
+
+export function secureRandomInt(min: number, max: number): number {
+  const range = max - min + 1;
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return min + (buf[0] % range);
+}
+
+/** 校验 base64 Ed25519 公钥（32 字节 raw）。 */
+export async function validateEd25519PublicKey(publicKeyBase64: string): Promise<boolean> {
+  try {
+    const publicKeyRaw = base64ToBuffer(publicKeyBase64);
+    if (publicKeyRaw.length !== 32) return false;
+    await crypto.subtle.importKey('raw', publicKeyRaw, { name: 'Ed25519' }, false, ['verify']);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function verifyEd25519Signature(

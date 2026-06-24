@@ -5,9 +5,6 @@ import { jsonFail } from '../lib/response';
 const SESSION_PREFIX = 'session:';
 const SESSION_TTL = 60 * 60 * 24 * 7;
 
-const PAIRING_PREFIX = 'pairing:';
-const PAIRING_TTL = 60 * 10;
-
 const DEVICE_TOKEN_PREFIX = 'device_token:';
 
 export interface SessionUser {
@@ -38,20 +35,6 @@ export async function getSession(kv: KVNamespace, token: string): Promise<Sessio
 
 export async function deleteSession(kv: KVNamespace, token: string): Promise<void> {
   await kv.delete(`${SESSION_PREFIX}${token}`);
-}
-
-export async function createPairingToken(kv: KVNamespace, userId: string): Promise<string> {
-  const token = generatePairingCode();
-  await kv.put(`${PAIRING_PREFIX}${token}`, userId, { expirationTtl: PAIRING_TTL });
-  return token;
-}
-
-export async function consumePairingToken(kv: KVNamespace, token: string): Promise<string | null> {
-  const key = `${PAIRING_PREFIX}${token}`;
-  const userId = await kv.get(key);
-  if (!userId) return null;
-  await kv.delete(key);
-  return userId;
 }
 
 export async function createDeviceToken(kv: KVNamespace, deviceId: string): Promise<string> {
@@ -98,14 +81,4 @@ export function sessionCookie(token: string): string {
 
 export function clearSessionCookie(): string {
   return 'token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0';
-}
-
-function generatePairingCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
-  for (let i = 0; i < 8; i++) {
-    code += chars[bytes[i] % chars.length];
-  }
-  return code;
 }

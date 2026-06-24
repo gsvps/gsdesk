@@ -1,3 +1,5 @@
+import type { Env } from '../env';
+
 const DEFAULT_VERSION = '0.1.0';
 
 export function parseVersion(input: string): number[] {

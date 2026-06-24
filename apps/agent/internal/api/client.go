@@ -37,11 +37,10 @@ type apiResponse[T any] struct {
 }
 
 type RegisterRequest struct {
-	DeviceName   string `json:"device_name"`
-	Hostname     string `json:"hostname"`
-	OS           string `json:"os"`
-	PublicKey    string `json:"public_key"`
-	PairingToken string `json:"pairing_token,omitempty"`
+	DeviceName string `json:"device_name"`
+	Hostname   string `json:"hostname"`
+	OS         string `json:"os"`
+	PublicKey  string `json:"public_key"`
 }
 
 type RegisterResponse struct {

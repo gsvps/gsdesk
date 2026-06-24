@@ -39,3 +39,21 @@ export async function getFileMeta(env: Env, fileId: string): Promise<FileMeta | 
 export function newFileId(): string {
   return generateId('file');
 }
+
+export interface UploadedFile {
+  name: string;
+  size: number;
+  type: string;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
+export function parseUploadedFile(value: unknown): UploadedFile | null {
+  if (!value || typeof value !== 'object' || !('arrayBuffer' in value)) {
+    return null;
+  }
+  const file = value as UploadedFile;
+  if (typeof file.size !== 'number' || typeof file.arrayBuffer !== 'function') {
+    return null;
+  }
+  return file;
+}

@@ -3,7 +3,7 @@ import { Hono, type Context } from 'hono';
 import type { Env } from '../env';
 import { createDb } from '../db';
 import { sessions } from '../db/schema';
-import { getFileMeta, newFileId, r2Key, saveFileMeta } from '../lib/file-transfer';
+import { getFileMeta, newFileId, parseUploadedFile, r2Key, saveFileMeta } from '../lib/file-transfer';
 import { jsonFail, jsonOk } from '../lib/response';
 import { deviceAuthMiddleware, type DeviceAuthVariables } from '../middleware/device-auth';
 
@@ -78,8 +78,8 @@ agentFiles.post('/upload', async (c) => {
   if (check.error) return check.error;
 
   const form = await c.req.formData();
-  const file = form.get('file');
-  if (!(file instanceof File)) {
+  const file = parseUploadedFile(form.get('file'));
+  if (!file) {
     return jsonFail(c, 'BAD_REQUEST', '缺少 file 字段');
   }
   if (file.size <= 0) {

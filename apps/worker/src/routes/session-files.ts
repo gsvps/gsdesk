@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import type { Env } from '../env';
 import { createDb } from '../db';
 import { sessions } from '../db/schema';
-import { getFileMeta, newFileId, r2Key, saveFileMeta } from '../lib/file-transfer';
+import { getFileMeta, newFileId, parseUploadedFile, r2Key, saveFileMeta } from '../lib/file-transfer';
 import { getClientIp, jsonFail, jsonOk } from '../lib/response';
 import { writeAuditLog } from '../lib/audit';
 import type { AuthVariables } from '../middleware/auth';
@@ -45,8 +45,8 @@ sessionFiles.post('/upload', async (c) => {
   const row = check.row!;
 
   const form = await c.req.formData();
-  const file = form.get('file');
-  if (!(file instanceof File)) {
+  const file = parseUploadedFile(form.get('file'));
+  if (!file) {
     return jsonFail(c, 'BAD_REQUEST', '缺少 file 字段');
   }
   if (file.size <= 0) {

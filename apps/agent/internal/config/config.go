@@ -10,7 +10,6 @@ import (
 type Config struct {
 	ServerURL       string        `json:"server_url"`
 	ControllerToken string        `json:"controller_token,omitempty"`
-	PairingToken    string        `json:"pairing_token,omitempty"`
 	DeviceName   string        `json:"device_name,omitempty"`
 	Hostname     string        `json:"hostname,omitempty"`
 	OS           string        `json:"os,omitempty"`
@@ -42,10 +41,6 @@ func Load() (*Config, error) {
 
 	if raw, err := os.ReadFile(path); err == nil {
 		_ = json.Unmarshal(raw, cfg)
-	}
-
-	if token := os.Getenv("CLOUDDESK_PAIRING_TOKEN"); token != "" {
-		cfg.PairingToken = token
 	}
 
 	if cfg.ServerURL == "" {

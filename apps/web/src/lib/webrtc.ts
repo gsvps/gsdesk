@@ -4,7 +4,9 @@ import { resolveSignalUrl } from './signal-url';
 
 export interface ScreenFrameMessage {
   type: 'screen_frame';
+  /** base64（JSON 信令路径）；二进制路径请用 jpegBytes */
   data: string;
+  jpegBytes?: Uint8Array;
   width: number;
   height: number;
   format: 'jpeg';
@@ -275,16 +277,11 @@ export class RemoteSession {
     }
     const width = view.getUint16(4);
     const height = view.getUint16(6);
-    const jpeg = data.slice(8);
-    const bytes = new Uint8Array(jpeg);
-    let binary = '';
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-    }
+    const jpegBytes = new Uint8Array(data.slice(8));
     this.options.onScreenFrame?.({
       type: 'screen_frame',
-      data: btoa(binary),
+      data: '',
+      jpegBytes,
       width,
       height,
       format: 'jpeg',

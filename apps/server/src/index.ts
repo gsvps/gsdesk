@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { createCoreApp } from '../../worker/src/app.js';
 import type { Env } from '../../worker/src/env.js';
 import { createD1Database } from './adapters/d1-sqlite.js';
-import { MemoryKv } from './adapters/kv-memory.js';
+import { SqliteKv } from './adapters/kv-sqlite.js';
 import { LocalR2Bucket } from './adapters/r2-local.js';
 import { applyMigrations, openDatabase } from './migrate.js';
 import { attachWebSocketServer, nodeFetch } from './http.js';
@@ -20,7 +20,7 @@ function createRuntime() {
   applyMigrations(sqlite);
 
   const registry = new RoomRegistry();
-  const kv = new MemoryKv();
+  const kv = new SqliteKv(sqlite);
 
   const base: Omit<Env, 'DEVICE_ROOM' | 'SESSION_ROOM'> = {
     DB: createD1Database(sqlite),

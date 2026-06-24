@@ -13,7 +13,6 @@ apps/agent/clouddesk-agent
 apps/agent/clouddesk-agent.exe
 apps/agent/clouddesk-client-test.exe
 apps/agent/*.exe
-!apps/agent/clouddesk-client.exe
 apps/agent/*.exe~
 apps/agent/.../
 apps/agent/.clouddesk/

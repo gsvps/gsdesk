@@ -18,6 +18,7 @@
     "build:worker": "npm run build -w @clouddesk/worker",
     "build:server": "npm run build -w @clouddesk/server",
     "typecheck": "npm run typecheck -w @clouddesk/worker && npm run typecheck -w @clouddesk/web && npm run typecheck -w @clouddesk/server",
+    "test": "npm run test -w @clouddesk/worker",
     "db:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.toml",
     "db:migrate": "wrangler d1 migrations apply DB --remote --config wrangler.toml",
     "deploy": "npm run db:migrate && wrangler deploy --config wrangler.toml",
@@ -30,7 +31,7 @@
         "description": "D1 数据库，存储用户、设备、会话与审计日志。默认名称：`clouddesk`"
       },
       "KV": {
-        "description": "KV 命名空间，存储登录会话、配对码、设备 Token。默认名称：`clouddesk`"
+        "description": "KV 命名空间，存储登录会话、OTP、设备 Token、限流计数。默认名称：`clouddesk`"
       },
       "R2": {
         "description": "R2 存储桶，预留文件传输。默认名称：`clouddesk-files`"

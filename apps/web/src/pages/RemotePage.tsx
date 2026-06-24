@@ -191,9 +191,10 @@ export default function RemotePage() {
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, []);
 
-  const drawFrame = useCallback((data: string, width: number, height: number) => {
+  const drawFrame = useCallback((frame: { data: string; jpegBytes?: Uint8Array; width: number; height: number }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const { width, height } = frame;
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
@@ -201,11 +202,27 @@ export default function RemotePage() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const img = new Image();
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0, width, height);
+    const paint = (source: CanvasImageSource) => {
+      ctx.drawImage(source, 0, 0, width, height);
     };
-    img.src = `data:image/jpeg;base64,${data}`;
+
+    if (frame.jpegBytes && frame.jpegBytes.byteLength > 0) {
+      const bytes = new Uint8Array(frame.jpegBytes);
+      void createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }))
+        .then((bitmap) => {
+          paint(bitmap);
+          bitmap.close();
+        })
+        .catch(() => {
+          /* drop corrupt frame */
+        });
+      return;
+    }
+
+    if (!frame.data) return;
+    const img = new Image();
+    img.onload = () => paint(img);
+    img.src = `data:image/jpeg;base64,${frame.data}`;
   }, []);
 
   useEffect(() => {
@@ -267,7 +284,7 @@ export default function RemotePage() {
           setError('');
           setUseVideoTrack(false);
           screenSizeRef.current = { width: frame.width, height: frame.height };
-          drawFrame(frame.data, frame.width, frame.height);
+          drawFrame(frame);
           setStatus('已连接 (JPEG · 可调画质)');
         },
         onScreenInfo: (info: ScreenInfoMessage) => {

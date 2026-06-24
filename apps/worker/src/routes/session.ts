@@ -6,6 +6,7 @@ import { devices, sessions } from '../db/schema';
 import { writeAuditLog } from '../lib/audit';
 import { deviceAccessProtected, verifyDeviceAccess, type AccessPasswordType } from '../lib/device-access';
 import { generateId } from '../lib/crypto';
+import { rateLimitResponse } from '../lib/rate-limit';
 import { getClientIp, jsonFail, jsonOk } from '../lib/response';
 import { createSessionWsToken } from '../lib/session-ws';
 import { CONTROLLER_USER_ID, controllerAuthMiddleware } from '../middleware/controller-auth';
@@ -74,6 +75,10 @@ session.post('/create', async (c) => {
       device.accessPasswordHash
     );
     if (!check.ok) {
+      if (check.rateLimited) {
+        const rl = rateLimitResponse(check.retryAfterSec ?? 60);
+        return jsonFail(c, rl.code, rl.message, rl.status);
+      }
       if (check.reason === 'otp_unavailable') {
         return jsonFail(c, 'OTP_UNAVAILABLE', '当前没有有效的一次性密码', 401);
       }
@@ -151,7 +156,7 @@ session.post('/:id/reconnect', async (c) => {
     return jsonFail(c, 'SESSION_CLOSED', '会话已结束，请从设备列表重新发起连接', 410);
   }
 
-  if (row.status === 'pending' && Date.now() - row.startedAt < 60_000) {
+  if (row.status === 'pending' && row.startedAt != null && Date.now() - row.startedAt < 60_000) {
     return jsonOk(c, { session_id: sessionId, status: 'pending', deduped: true });
   }
 
