@@ -5,14 +5,13 @@
 import { hasAgentBridge, loadAgentState } from './agent-bridge';
 import { getStoredToken, setStoredToken } from './api';
 import {
-  applyBackendToRuntime,
   loadBackendConfig,
   saveBackendConfig,
   type BackendMode,
 } from './backend-config';
 import { isAgentLocalServer } from './bridge-http';
 import { loadControllerTokenFromBridge } from './controller-token-bridge';
-import { setRuntimeApiBase } from './runtime-config';
+import { resolveRuntimeApiBase, setRuntimeApiBase } from './runtime-config';
 
 export const BROWSER_STORAGE_KEYS = {
   backend: 'clouddesk_backend',
@@ -29,7 +28,7 @@ export function useBrowserLocalPrefs(): boolean {
 }
 
 export function loadPreferredApiBase(): string {
-  return applyBackendToRuntime(loadBackendConfig());
+  return resolveRuntimeApiBase();
 }
 
 export function savePreferredApiBase(apiBase: string, mode?: BackendMode) {

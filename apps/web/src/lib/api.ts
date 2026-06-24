@@ -41,7 +41,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
       throw new Error('请求超时，请检查 Worker 地址与网络连接');
     }
     const { apiBase } = getRuntimeConfig();
-    const hint = apiBase || 'http://127.0.0.1:8787';
+    const hint =
+      apiBase ||
+      (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8787');
     throw new Error(`无法连接服务器（${hint}），请确认 CloudDesk Worker 已启动`);
   }
 

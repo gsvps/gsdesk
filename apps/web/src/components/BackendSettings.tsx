@@ -53,6 +53,11 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
   const [webAppEntry, setWebAppEntry] = useState('/app/');
 
   useEffect(() => {
+    if (isHostedWebApp()) {
+      setRuntimeApiBase('');
+      return;
+    }
+
     const loaded = loadBackendConfig();
     setConfig(loaded);
     setRuntimeApiBase(applyBackendToRuntime(loaded));
@@ -202,7 +207,13 @@ export default function BackendSettings({ compact = false }: { compact?: boolean
     }
   }, [agentState]);
 
-  useDebouncedEffect(() => void persistApi(), [config.apiBase, config.mode], 800, apiBaseFilled, true);
+  useDebouncedEffect(
+    () => void persistApi(),
+    [config.apiBase, config.mode],
+    800,
+    !isHostedWebApp() && apiBaseFilled,
+    true
+  );
 
   useDebouncedEffect(
     () => void persistToken(tokenValue),

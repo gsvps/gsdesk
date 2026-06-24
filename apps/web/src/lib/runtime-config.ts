@@ -140,7 +140,17 @@ export async function initRuntimeConfig(): Promise<void> {
 }
 
 export function setRuntimeApiBase(apiBase: string) {
+  if (isHostedWebApp()) {
+    config = { ...config, apiBase: '' };
+    return;
+  }
   config = { ...config, apiBase: apiBase.replace(/\/$/, '') };
+}
+
+/** 托管 Web UI 走同源 API；其余场景按 localStorage 后端配置解析。 */
+export function resolveRuntimeApiBase(): string {
+  if (isHostedWebApp()) return '';
+  return applyBackendToRuntime(loadBackendConfig());
 }
 
 export function resolveApiUrl(path: string): string {
