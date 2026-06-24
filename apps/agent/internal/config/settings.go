@@ -8,7 +8,7 @@ import (
 
 // AgentSettings are user preferences persisted in config.json.
 type AgentSettings struct {
-	DefaultQuality   string `json:"default_quality,omitempty"` // low | medium | high | ultra
+	DefaultQuality   string `json:"default_quality,omitempty"` // low | medium | high | ultra | 4k
 	AutoAccept       *bool  `json:"auto_accept,omitempty"`
 	ClipboardSync    *bool  `json:"clipboard_sync,omitempty"` // nil = enabled
 	LaunchAtStartup  bool   `json:"launch_at_startup,omitempty"`

@@ -28,7 +28,7 @@ import { isDesktopClient, isHostedWebApp, setRuntimeApiBase } from '../lib/runti
 import { useDebouncedEffect } from '../lib/use-debounce';
 
 function normalizeDefaultQuality(value: string | undefined): QualityPreset {
-  if (value === 'low' || value === 'medium' || value === 'high' || value === 'ultra') return value;
+  if (value === 'low' || value === 'medium' || value === 'high' || value === 'ultra' || value === '4k') return value;
   return 'high';
 }
 

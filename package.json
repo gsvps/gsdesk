@@ -1,6 +1,6 @@
 {
   "name": "clouddesk",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "基于 Cloudflare 和 WebRTC 的无服务器远程桌面",
   "workspaces": [

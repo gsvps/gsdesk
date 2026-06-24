@@ -41,6 +41,8 @@ func ApplyQualityPreset(preset string) {
 	case "high":
 		next = StreamSettings{MaxWidth: 1920, FPS: 16, JPEGQuality: 82, MaxJPEGBytes: 200 * 1024}
 	case "ultra":
+		next = StreamSettings{MaxWidth: 2560, FPS: 20, JPEGQuality: 90, MaxJPEGBytes: 240 * 1024}
+	case "4k":
 		next = StreamSettings{MaxWidth: 3840, FPS: 24, JPEGQuality: 98, MaxJPEGBytes: maxJPEGBytes}
 	default:
 		next = StreamSettings{MaxWidth: 3840, FPS: 24, JPEGQuality: 98, MaxJPEGBytes: maxJPEGBytes}

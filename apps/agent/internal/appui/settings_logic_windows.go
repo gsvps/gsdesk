@@ -240,7 +240,7 @@ func otpIdleMinutes(v int) *int {
 
 func normalizeQuality(q string) string {
 	switch q {
-	case "low", "medium", "high", "ultra":
+	case "low", "medium", "high", "ultra", "4k":
 		return q
 	default:
 		return "high"
