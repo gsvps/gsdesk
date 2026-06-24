@@ -3,7 +3,12 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  base: process.env.VITE_EMBED === '1' ? './' : '/',
+  base:
+    process.env.VITE_EMBED === '1'
+      ? './'
+      : process.env.CLOUDDESK_WEB_APP_PATH
+        ? `${String(process.env.CLOUDDESK_WEB_APP_PATH).replace(/\/$/, '')}/`
+        : '/',
   plugins: [react(), tailwindcss()],
     server: {
       port: 5173,

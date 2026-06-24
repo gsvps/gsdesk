@@ -32,11 +32,25 @@ export function isDesktopClient(): boolean {
 
 export function webAppBasename(): string {
   const raw = import.meta.env.BASE_URL ?? '/';
-  // 嵌入 exe 时 Vite base 为 `./`，不能作为 BrowserRouter basename
   if (!raw || raw === '/' || raw === './' || raw === '.') {
+    const detected = detectHostedPathFromLocation();
+    if (detected) return detected;
     return '/';
   }
   return raw.replace(/\/+$/, '') || '/';
+}
+
+/** 从当前 URL 推断托管路径（deploy 时未按 /app base 构建时的兜底） */
+function detectHostedPathFromLocation(): string | null {
+  if (typeof window === 'undefined') return null;
+  const pathname = window.location.pathname;
+  // 与 wrangler WEB_APP_PATH 默认一致；常见托管入口
+  for (const prefix of ['/app']) {
+    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) {
+      return prefix;
+    }
+  }
+  return null;
 }
 
 export function isHostedWebApp(): boolean {
