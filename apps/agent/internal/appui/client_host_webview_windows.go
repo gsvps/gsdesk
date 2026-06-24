@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -27,7 +27,7 @@ var (
 type clientWindowOpts struct {
 	hideUntilReady   bool
 	uiReadyTimeout   time.Duration
-	onInstallSuccess func(w webview.WebView, homeURL string) error
+	onInstallSuccess func(w webview.WebView, homeURL string, installDir string) error
 }
 
 func showClientWindow(cfg *config.Config, save SaveFunc, agent AgentView, tab string, block bool) {
@@ -297,6 +297,7 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 			installProgress.Error = result.Error
 			installProgress.Message = result.Message
 			installProgress.Relaunch = result.Relaunch
+			installProgress.InstallDir = result.InstallDir
 			if result.OK {
 				installProgress.Step = "安装完成"
 				installProgress.Percent = 100
@@ -310,9 +311,10 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 			}
 
 			time.Sleep(300 * time.Millisecond)
+			installDir := strings.TrimSpace(result.InstallDir)
 			w.Dispatch(func() {
 				if opts.onInstallSuccess != nil {
-					if err := opts.onInstallSuccess(w, homeURL); err != nil {
+					if err := opts.onInstallSuccess(w, homeURL, installDir); err != nil {
 						showError(err.Error())
 						w.Terminate()
 					}
@@ -359,16 +361,15 @@ func runBootstrapClient(cfg *config.Config, factory AgentFactory) error {
 	_ = factory
 	return runClientWindow(cfg, newAgentHolder(nil, nil), "install", true, clientWindowOpts{
 		hideUntilReady: false,
-		onInstallSuccess: func(w webview.WebView, homeURL string) error {
-			newCfg, err := config.Load()
-			if err != nil {
-				return err
-			}
-			installDir := newCfg.InstallPath()
+		onInstallSuccess: func(w webview.WebView, homeURL string, installDir string) error {
+			installDir = strings.TrimSpace(installDir)
 			if installDir == "" {
 				return fmt.Errorf("安装目录无效")
 			}
-			installedExe := filepath.Join(installDir, "CloudDesk.exe")
+			installedExe := install.InstalledExePath(installDir)
+			if _, err := os.Stat(installedExe); err != nil {
+				return fmt.Errorf("未找到已安装程序: %s", installedExe)
+			}
 
 			go func() {
 				time.Sleep(400 * time.Millisecond)

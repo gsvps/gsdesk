@@ -58,6 +58,11 @@ func BrowseInstallDir(current string) string {
 	return current
 }
 
+// InstalledExePath returns the installed CloudDesk executable path.
+func InstalledExePath(installDir string) string {
+	return filepath.Join(filepath.Clean(strings.TrimSpace(installDir)), "CloudDesk.exe")
+}
+
 type InstallRequest struct {
 	InstallDir            string `json:"install_dir"`
 	CreateDesktopShortcut bool   `json:"create_desktop_shortcut"`

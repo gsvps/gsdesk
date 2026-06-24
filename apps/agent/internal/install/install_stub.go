@@ -42,3 +42,5 @@ func RunInstallWithOptions(req InstallRequest, onProgress ProgressFunc) Result {
 func HasWebView2Runtime() bool { return true }
 
 func EnsureWebView2Runtime(packagesDir string, onProgress ProgressFunc) error { return nil }
+
+func InstalledExePath(installDir string) string { return installDir }

@@ -8,9 +8,10 @@ type Progress struct {
 	OK       bool   `json:"ok"`
 	Error    string `json:"error,omitempty"`
 	Message  string `json:"message,omitempty"`
-	Step     string `json:"step"`
-	Percent  int    `json:"percent"`
-	Relaunch bool   `json:"relaunch,omitempty"`
+	Step       string `json:"step"`
+	Percent    int    `json:"percent"`
+	Relaunch   bool   `json:"relaunch,omitempty"`
+	InstallDir string `json:"install_dir,omitempty"`
 }
 
 func report(onProgress ProgressFunc, step string, percent int) {
