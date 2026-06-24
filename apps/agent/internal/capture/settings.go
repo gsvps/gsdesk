@@ -43,7 +43,7 @@ func ApplyQualityPreset(preset string) {
 	case "ultra":
 		next = StreamSettings{MaxWidth: 3840, FPS: 24, JPEGQuality: 98, MaxJPEGBytes: maxJPEGBytes}
 	default:
-		return
+		next = StreamSettings{MaxWidth: 3840, FPS: 24, JPEGQuality: 98, MaxJPEGBytes: maxJPEGBytes}
 	}
 	settingsMu.Lock()
 	settings = next

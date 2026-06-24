@@ -53,10 +53,6 @@ export function installAgentHttpBridge(): void {
   window.refreshAgentStatus = () => bridgeGet('refreshAgentStatus');
   window.getControllerTokenGo = () => bridgeGet('getControllerTokenGo');
   window.getOTPStatusGo = () => bridgeGet('getOTPStatusGo');
-  window.getInstallStateGo = () => bridgeGet('getInstallStateGo');
-  window.getInstallProgressGo = () => bridgeGet('getInstallProgressGo');
-  window.getClientVersionGo = () => bridgeGet('getClientVersionGo');
-  window.checkUpdateGo = () => bridgeGet('checkUpdateGo');
   window.notifyUIReadyGo = () => bridgeGet('notifyUIReadyGo');
   window.isWindowFullscreenGo = () => bridgeGet('isWindowFullscreenGo');
 
@@ -68,10 +64,7 @@ export function installAgentHttpBridge(): void {
   window.clearPermanentPasswordGo = () => bridgePost('clearPermanentPasswordGo');
   window.saveSettingsGo = (raw: string) => bridgePost('saveSettingsGo', raw);
   window.closeWindowGo = () => bridgePost('closeWindowGo');
-  window.runInstallGo = (raw: string) => bridgePost('runInstallGo', raw);
-  window.openExternalGo = (url: string) => bridgePost('openExternalGo', { url });
   window.setWindowFullscreenGo = (enabled: string) => bridgePost('setWindowFullscreenGo', { enabled });
 
   window.browseDownloadDirGo = async (current: string) => parsePath(await bridgeGet('browseDownloadDirGo', { current }));
-  window.browseInstallDirGo = async (current: string) => parsePath(await bridgeGet('browseInstallDirGo', { current }));
 }

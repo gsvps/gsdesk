@@ -107,7 +107,7 @@ func applySave(cfg *config.Config, save SaveFunc, agent AgentView, payload saveP
 		downloadDir = ""
 	}
 	next.Settings = config.AgentSettings{
-		DefaultQuality:        payload.DefaultQuality,
+		DefaultQuality:        normalizeQuality(payload.DefaultQuality),
 		AutoAccept:            payload.AutoAccept,
 		ClipboardSync:         &clip,
 		LaunchAtStartup:       payload.LaunchAtStartup,
@@ -235,4 +235,13 @@ func otpIdleMinutes(v int) *int {
 		v = 120
 	}
 	return &v
+}
+
+func normalizeQuality(q string) string {
+	switch q {
+	case "low", "medium", "high", "ultra":
+		return q
+	default:
+		return "ultra"
+	}
 }

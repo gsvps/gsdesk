@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Switch from './Switch';
 import {
+  agentStateToSavePayload,
+  clearAgentPermanentPassword,
   copyViaBridge,
   generateAgentOTP,
   getAgentOTPStatus,
@@ -13,11 +15,29 @@ import {
   type AgentSavePayload,
   type AgentUIState,
 } from '../lib/agent-bridge';
-import { CONFIG_UPDATED_EVENT } from '../lib/browser-prefs';
+import {
+  BROWSER_STORAGE_KEYS,
+  clearBrowserLocalCache,
+  CONFIG_UPDATED_EVENT,
+  getBrowserStorageOrigin,
+  loadPreferredApiBase,
+  loadPreferredToken,
+  useBrowserLocalPrefs,
+} from '../lib/browser-prefs';
+import { isAgentLocalServer } from '../lib/bridge-http';
 import { formatDeviceId } from '../lib/local-devices';
+import { useDebouncedEffect } from '../lib/use-debounce';
+
+function readStoragePrefs() {
+  return {
+    apiBase: loadPreferredApiBase(),
+    hasToken: Boolean(loadPreferredToken()),
+  };
+}
 
 export default function LocalDevicePanel({ compact = false }: { compact?: boolean }) {
   const bridge = hasAgentBridge();
+  const showStorageInfo = isAgentLocalServer() && useBrowserLocalPrefs();
   const [state, setState] = useState<AgentUIState | null>(null);
   const [online, setOnline] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -25,7 +45,12 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
   const [statusKind, setStatusKind] = useState<'success' | 'error' | ''>('');
   const [otpCode, setOtpCode] = useState('');
   const [otpHint, setOtpHint] = useState('正在生成一次性密码…');
+  const [permanentPassword, setPermanentPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [storagePrefs, setStoragePrefs] = useState(readStoragePrefs);
   const savingToggle = useRef(false);
+  const agentLoaded = useRef(false);
 
   const showStatus = useCallback((text: string, kind: 'success' | 'error' | '' = '') => {
     setStatus(text);
@@ -91,10 +116,18 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
         setState(data);
         setOnline(data.online);
         setConnecting(Boolean(data.agent_enabled && !data.online && !data.last_error));
+        agentLoaded.current = true;
         void refreshOTP(false);
       })
       .catch((err) => showStatus(String(err), 'error'));
   }, [bridge, refreshOTP, showStatus]);
+
+  useEffect(() => {
+    if (!showStorageInfo) return;
+    const refresh = () => setStoragePrefs(readStoragePrefs());
+    window.addEventListener(CONFIG_UPDATED_EVENT, refresh);
+    return () => window.removeEventListener(CONFIG_UPDATED_EVENT, refresh);
+  }, [showStorageInfo]);
 
   useEffect(() => {
     if (!bridge) return;
@@ -150,6 +183,43 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
     return () => window.removeEventListener(CONFIG_UPDATED_EVENT, onConfigUpdated);
   }, [bridge, refreshOTP]);
 
+  const persistPermanentPassword = useCallback(async () => {
+    if (!agentLoaded.current) return;
+    const pwd = permanentPassword.trim();
+    if (pwd.length < 4) return;
+    setPasswordBusy(true);
+    try {
+      const fresh = await loadAgentState();
+      const result = await saveAgentSettings(
+        agentStateToSavePayload(fresh, {
+          permanent_password: pwd,
+          launch_at_startup: false,
+          start_minimized: false,
+          close_to_tray: false,
+        })
+      );
+      if (!result.ok) {
+        showStatus(result.error || '保存密码失败', 'error');
+        return;
+      }
+      setPermanentPassword('');
+      if (result.state) setState(result.state);
+      showStatus('自定义密码已保存', 'success');
+    } catch (err) {
+      showStatus(err instanceof Error ? err.message : '保存密码失败', 'error');
+    } finally {
+      setPasswordBusy(false);
+    }
+  }, [permanentPassword, showStatus]);
+
+  useDebouncedEffect(
+    () => void persistPermanentPassword(),
+    [permanentPassword],
+    800,
+    Boolean(permanentPassword.trim()) && permanentPassword.trim().length >= 4,
+    true
+  );
+
   if (!bridge) return null;
   if (!state) return <p className="text-slate-400">加载本机信息...</p>;
 
@@ -161,8 +231,8 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
       clipboard_enabled: next.clipboard_enabled,
       download_dir: next.download_dir,
       auto_accept: next.auto_accept,
-      launch_at_startup: next.launch_at_startup,
-      start_minimized: next.start_minimized,
+      launch_at_startup: false,
+      start_minimized: false,
       permanent_password: '',
       clear_permanent_password: false,
       agent_enabled: next.agent_enabled,
@@ -216,8 +286,34 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
     }
   }
 
-  async function handleRefresh() {
+  async function handleClearPermanentPassword() {
+    setPasswordBusy(true);
+    try {
+      const result = await clearAgentPermanentPassword();
+      if (!result.ok) {
+        showStatus(result.error || '清除失败', 'error');
+        return;
+      }
+      setPermanentPassword('');
+      showStatus('已清除自定义密码', 'success');
+    } catch (err) {
+      showStatus(err instanceof Error ? err.message : '清除失败', 'error');
+    } finally {
+      setPasswordBusy(false);
+    }
+  }
+
+  function handleClearCache() {
+    if (!window.confirm('将清除 localStorage 中的 API 地址、控制器令牌、设备列表等配置，并刷新页面。确定继续？')) {
+      return;
+    }
+    clearBrowserLocalCache();
+    window.location.reload();
+  }
+
+  async function handleConnectionTest() {
     setConnecting(true);
+    showStatus('正在测试连接…', '');
     try {
       const data = await reconnectAgent();
       setOnline(Boolean(data.online));
@@ -225,10 +321,10 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
       const next = Boolean(data.state?.online);
       setConnecting(Boolean(!next && data.state?.agent_enabled && !data.state?.last_error));
       if (next) {
-        showStatus('本机已连接服务器。', 'success');
+        showStatus('连接测试成功，本机已在线。', 'success');
         void refreshOTP(true);
       } else if (data.state?.last_error) {
-        showStatus(`本机未连接：${data.state.last_error}`, 'error');
+        showStatus(`连接测试失败：${data.state.last_error}`, 'error');
       } else {
         showStatus('正在连接服务器…', '');
       }
@@ -250,7 +346,9 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
   const conn = connectionLabel(state);
 
   return (
-    <section className={`rounded-xl border border-slate-700 bg-slate-900/60 ${compact ? 'p-3' : 'p-5'}`}>
+    <section
+      className={`flex h-full flex-col overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/60 ${compact ? 'p-3' : 'p-5'}`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className={`font-medium text-white ${compact ? 'text-sm' : 'text-lg'}`}>本机</h3>
@@ -288,8 +386,12 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
         >
           复制 ID
         </button>
-        <button type="button" className="rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800" onClick={() => void handleRefresh()}>
-          刷新
+        <button
+          type="button"
+          className="rounded-lg border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800"
+          onClick={() => void handleConnectionTest()}
+        >
+          连接测试
         </button>
       </div>
 
@@ -322,20 +424,79 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
           >
             刷新
           </button>
+        </div>
+        <p className={`text-slate-500 ${compact ? 'mt-1 text-[11px]' : 'mt-2 text-xs'}`}>{otpHint}</p>
+      </div>
+
+      <div id="permanent-password" className={`border-t border-slate-800 ${compact ? 'mt-3 pt-3' : 'mt-5 pt-5'}`}>
+        <label className="block text-xs text-slate-400">
+          自定义密码
+          <div className="mt-1 flex flex-wrap gap-1">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={permanentPassword}
+              onChange={(e) => setPermanentPassword(e.target.value)}
+              placeholder="至少 4 位，留空表示不修改"
+              className={`min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 text-white ${compact ? 'px-2 py-1 text-sm' : 'px-3 py-2'}`}
+            />
+            <button
+              type="button"
+              title={showPassword ? '隐藏' : '显示'}
+              className="rounded-lg border border-slate-600 px-2.5 py-1 text-xs hover:bg-slate-800"
+              onClick={() => setShowPassword((v) => !v)}
+            >
+              {showPassword ? '隐藏' : '显示'}
+            </button>
+            <button
+              type="button"
+              disabled={passwordBusy}
+              className="rounded-lg border border-slate-600 px-2 py-1 text-xs hover:bg-slate-800 disabled:opacity-50"
+              onClick={() => void handleClearPermanentPassword()}
+            >
+              清除
+            </button>
+          </div>
+        </label>
+      </div>
+
+      {showStorageInfo && (
+        <div className={`border-t border-slate-800 text-[11px] leading-relaxed text-slate-400 ${compact ? 'mt-3 pt-3' : 'mt-5 pt-5'}`}>
+          <p className="text-xs font-medium text-slate-300">localStorage</p>
+          <p className="mt-1">
+            域：<code className="text-sky-300">{getBrowserStorageOrigin()}</code>
+          </p>
+          <p className="mt-0.5">
+            键：<code className="text-sky-300">{BROWSER_STORAGE_KEYS.backend}</code>、
+            <code className="text-sky-300">{BROWSER_STORAGE_KEYS.token}</code>
+          </p>
+          <p className="mt-0.5">
+            API：
+            <code className={storagePrefs.apiBase ? 'text-emerald-300' : 'text-amber-300'}>
+              {storagePrefs.apiBase || '未配置'}
+            </code>
+            {' · '}
+            <span className={storagePrefs.hasToken ? 'text-emerald-300' : 'text-amber-300'}>
+              令牌：{storagePrefs.hasToken ? '已保存' : '未配置'}
+            </span>
+          </p>
+          {state.config_path && (
+            <p className="mt-0.5 truncate" title={state.config_path}>
+              Agent：<code className="text-slate-300">{state.config_path}</code>
+            </p>
+          )}
           <button
             type="button"
-            className="rounded-lg border border-slate-600 px-2 py-1 text-xs hover:bg-slate-800"
-            onClick={() => document.getElementById('permanent-password')?.querySelector('input')?.focus()}
+            className="mt-2 rounded border border-red-900/60 px-2 py-0.5 text-red-300 hover:bg-red-950/40"
+            onClick={handleClearCache}
           >
-            自定义密码
+            清理缓存
           </button>
         </div>
-        {!compact && <p className="mt-2 text-xs text-slate-500">{otpHint}</p>}
-      </div>
+      )}
 
       {status && (
         <p
-          className={`mt-4 rounded-lg px-3 py-2 text-sm ${statusKind === 'error' ? 'bg-red-950/50 text-red-300' : statusKind === 'success' ? 'bg-emerald-950/40 text-emerald-300' : 'text-slate-400'}`}
+          className={`mt-3 rounded-lg px-3 py-2 text-sm ${statusKind === 'error' ? 'bg-red-950/50 text-red-300' : statusKind === 'success' ? 'bg-emerald-950/40 text-emerald-300' : 'text-slate-400'}`}
         >
           {status}
         </p>

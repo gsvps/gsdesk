@@ -564,6 +564,12 @@ export default function RemotePage() {
     'rounded-md px-2 py-1 text-[10px] text-slate-300 transition hover:bg-slate-800 hover:text-white disabled:opacity-50 sm:px-2.5 sm:text-xs';
   const toolbarBtnActive = 'bg-slate-800 text-white';
   const isConnected = status.startsWith('已连接');
+  const isConnecting =
+    !isConnected &&
+    (status.includes('连接中') ||
+      status.includes('建立连接') ||
+      status.includes('重新连接') ||
+      status.includes('初始化'));
 
   return (
     <div ref={viewportRef} className="flex h-[100dvh] flex-col bg-black">
@@ -575,6 +581,8 @@ export default function RemotePage() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
               </span>
+            ) : isConnecting ? (
+              <span className="whitespace-nowrap text-[10px] font-medium text-amber-300 sm:text-xs">连接中...</span>
             ) : (
               <span className="whitespace-nowrap text-[10px] font-medium text-red-400 sm:text-xs">未连接</span>
             )}
@@ -699,7 +707,7 @@ export default function RemotePage() {
           )}
           <video
             ref={videoRef}
-            className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'block cursor-crosshair' : 'hidden'}`}
+            className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'block cursor-default' : 'hidden'}`}
             autoPlay
             playsInline
             muted
@@ -707,7 +715,7 @@ export default function RemotePage() {
           />
           <canvas
             ref={canvasRef}
-            className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'hidden' : 'block cursor-crosshair'}`}
+            className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'hidden' : 'block cursor-default'}`}
             {...(!useVideoTrack ? pointerHandlers : {})}
           />
           {reconnectPrompt?.open && (
