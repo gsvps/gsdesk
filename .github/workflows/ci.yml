@@ -3,6 +3,8 @@ name: CI
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*'
   pull_request:
     branches: [main]
 
@@ -31,8 +33,16 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+          cache-dependency-path: apps/agent/go.sum
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-gcc
+      - name: Add MinGW to PATH
+        run: Add-Content $env:GITHUB_PATH "C:\msys64\mingw64\bin"
+        shell: pwsh
       - run: npm ci
-      - run: npm run build -w @clouddesk/web
       - run: powershell -ExecutionPolicy Bypass -File apps/agent/build-client.ps1
         working-directory: .
       - run: go test ./...
@@ -53,8 +63,16 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+          cache-dependency-path: apps/agent/go.sum
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-gcc
+      - name: Add MinGW to PATH
+        run: Add-Content $env:GITHUB_PATH "C:\msys64\mingw64\bin"
+        shell: pwsh
       - run: npm ci
-      - run: npm run build -w @clouddesk/web
       - run: powershell -ExecutionPolicy Bypass -File apps/agent/build-client.ps1
       - uses: softprops/action-gh-release@v2
         with:
