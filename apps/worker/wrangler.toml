@@ -1,3 +1,4 @@
+name = "cloud-desk"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
 compatibility_flags = ["nodejs_compat"]
@@ -29,12 +30,12 @@ class_name = "SessionRoom"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["DeviceRoom", "SessionRoom"]
+new_sqlite_classes = ["DeviceRoom", "SessionRoom"]
 
 # 本地开发使用此 wrangler.toml；生产部署请使用仓库根目录 wrangler.toml
 
 [vars]
 SKIP_SIGNATURE_VERIFY = "true"
 CLIENT_LATEST_VERSION = "0.1.0"
-CLIENT_DOWNLOAD_URL = "https://github.com/clouddesk/clouddesk/releases/latest"
+CLIENT_DOWNLOAD_URL = "https://github.com/gsvps/cloud-desk/releases/latest"
 CONTROLLER_JWT_SECRET = "clouddesk-dev-controller-secret-change-me"

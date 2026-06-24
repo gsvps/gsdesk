@@ -1,4 +1,5 @@
-# Worker 名称不在仓库中预填，一键部署时由用户在部署页自行填写
+# Cloudflare Workers 部署配置（与 VPS apps/server 隔离）
+name = "cloud-desk"
 main = "apps/worker/src/index.ts"
 compatibility_date = "2026-01-01"
 compatibility_flags = ["nodejs_compat"]
@@ -31,11 +32,12 @@ class_name = "SessionRoom"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["DeviceRoom", "SessionRoom"]
+# Workers Free 计划仅支持 SQLite 版 Durable Objects（见 error 10097）
+new_sqlite_classes = ["DeviceRoom", "SessionRoom"]
 
 # APP_NAME 不在仓库中预填；部署页留空时应用内默认显示 CloudDesk
 
 [vars]
 CONTROLLER_JWT_SECRET = "clouddesk-dev-controller-secret-change-me"
 CLIENT_LATEST_VERSION = "0.1.0"
-CLIENT_DOWNLOAD_URL = "https://github.com/clouddesk/clouddesk/releases/latest"
+CLIENT_DOWNLOAD_URL = "https://github.com/gsvps/cloud-desk/releases/latest"
