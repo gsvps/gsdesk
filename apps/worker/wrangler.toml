@@ -30,6 +30,14 @@ class_name = "SessionRoom"
 
 [[migrations]]
 tag = "v1"
+new_classes = ["DeviceRoom", "SessionRoom"]
+
+[[migrations]]
+tag = "v2"
+deleted_classes = ["DeviceRoom", "SessionRoom"]
+
+[[migrations]]
+tag = "v3"
 new_sqlite_classes = ["DeviceRoom", "SessionRoom"]
 
 # 本地开发使用此 wrangler.toml；生产部署请使用仓库根目录 wrangler.toml

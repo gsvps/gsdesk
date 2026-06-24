@@ -99,7 +99,7 @@ go build -tags cgo -o clouddesk-agent.exe .
 
 | 问题 | 处理 |
 |------|------|
-| 部署报错 `10097` / `new_sqlite_classes` | Workers **Free** 计划须用 `new_sqlite_classes`（本仓库已配置）；重新触发部署即可 |
+| 部署报错 `10097` / `new_sqlite_classes` | Workers **Free** 须用 SQLite 版 DO；本仓库通过 `v2` 删除 KV 版、`v3` 创建 SQLite 版。若仍失败，在 Cloudflare 控制台 **删除 Worker `cloud-desk`** 后重新部署 |
 | Worker 名称 `undefined` | 根目录 `wrangler.toml` 已设置 `name = "cloud-desk"` |
 | 设备显示离线 | 确认 Agent 已启动且 `CLOUDDESK_SERVER` 正确 |
 | WebRTC 连接失败 | 检查 NAT/防火墙；MVP 未配置 TURN |

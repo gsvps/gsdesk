@@ -31,8 +31,17 @@ name = "SESSION_ROOM"
 class_name = "SessionRoom"
 
 [[migrations]]
+# 首次 Workers Builds 部署已记录 v1（KV 版 DO），勿改 tag/内容
 tag = "v1"
-# Workers Free 计划仅支持 SQLite 版 Durable Objects（见 error 10097）
+new_classes = ["DeviceRoom", "SessionRoom"]
+
+[[migrations]]
+tag = "v2"
+deleted_classes = ["DeviceRoom", "SessionRoom"]
+
+[[migrations]]
+# Workers Free 仅支持 SQLite 版 Durable Objects（error 10097）
+tag = "v3"
 new_sqlite_classes = ["DeviceRoom", "SessionRoom"]
 
 # APP_NAME 不在仓库中预填；部署页留空时应用内默认显示 CloudDesk
