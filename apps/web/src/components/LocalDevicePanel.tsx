@@ -57,6 +57,10 @@ export default function LocalDevicePanel() {
           setOtpHint('一次性密码已生成。');
           return;
         }
+        if (gen.message?.includes('正在生成')) {
+          setOtpHint('正在生成一次性密码…');
+          return;
+        }
         if (gen.error) {
           setOtpHint(gen.error);
         }
@@ -72,31 +76,31 @@ export default function LocalDevicePanel() {
       .then((data) => {
         setState(data);
         setOnline(data.online);
-        void refreshOTP(true);
-        void refreshAgentStatus().then((data) => {
-          setOnline(Boolean(data.online));
-          if (data.state) setState(data.state);
-          if (data.online) void refreshOTP(true);
-        });
+        void refreshOTP(false);
       })
       .catch((err) => showStatus(String(err), 'error'));
   }, [bridge, refreshOTP, showStatus]);
 
   useEffect(() => {
     if (!bridge) return;
-    const otpTimer = setInterval(() => void refreshOTP(online), 15000);
+    const otpTimer = setInterval(() => void refreshOTP(false), 30000);
     const onlineTimer = setInterval(() => {
       void refreshAgentStatus().then((data) => {
         setOnline(Boolean(data.online));
         if (data.state) setState(data.state);
-        if (data.online && !otpCode) void refreshOTP(true);
       });
-    }, 3000);
+    }, 10000);
     return () => {
       clearInterval(otpTimer);
       clearInterval(onlineTimer);
     };
-  }, [bridge, refreshOTP, online, otpCode]);
+  }, [bridge, refreshOTP]);
+
+  useEffect(() => {
+    if (!bridge || !otpHint.includes('正在生成')) return;
+    const timer = setInterval(() => void refreshOTP(false), 2000);
+    return () => clearInterval(timer);
+  }, [bridge, otpHint, refreshOTP]);
 
   if (!bridge) return null;
   if (!state) return <p className="text-slate-400">加载本机信息...</p>;

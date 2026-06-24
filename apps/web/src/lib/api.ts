@@ -31,8 +31,15 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   let res: Response;
   try {
-    res = await fetch(resolveApiUrl(path), { ...init, headers });
-  } catch {
+    res = await fetch(resolveApiUrl(path), {
+      ...init,
+      headers,
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'TimeoutError') {
+      throw new Error('请求超时，请检查 Worker 地址与网络连接');
+    }
     const { apiBase } = getRuntimeConfig();
     const hint = apiBase || 'http://127.0.0.1:8787';
     throw new Error(`无法连接服务器（${hint}），请确认 CloudDesk Worker 已启动`);

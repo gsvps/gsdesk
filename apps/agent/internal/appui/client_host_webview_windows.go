@@ -5,6 +5,7 @@ package appui
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -179,7 +180,7 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 		}
 		settings := cfg.Settings.Normalized()
 		if settings.AgentEnabledOn() {
-			agent.ForceReconnect()
+			go agent.ForceReconnect()
 		}
 		state := buildUIState(cfg, agent)
 		return mustJSON(actionResult{OK: true, Online: state.Online, State: &state, Message: "正在连接…"})
@@ -204,11 +205,16 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 		if agent == nil {
 			return mustJSON(actionResult{OK: false, Error: "Agent 服务未就绪"})
 		}
-		if err := agent.RefreshOTP(); err != nil {
-			return mustJSON(actionResult{OK: false, Error: err.Error()})
-		}
 		code, expiresIn, _, _ := agent.OTPStatus()
-		return mustJSON(actionResult{OK: true, Code: code, ExpiresIn: expiresIn})
+		if code != "" {
+			return mustJSON(actionResult{OK: true, Code: code, ExpiresIn: expiresIn})
+		}
+		go func() {
+			if err := agent.RefreshOTP(); err != nil {
+				log.Printf("generate otp: %v", err)
+			}
+		}()
+		return mustJSON(actionResult{OK: true, Message: "正在生成一次性密码…"})
 	})
 
 	w.Bind("getOTPStatusGo", func() string {

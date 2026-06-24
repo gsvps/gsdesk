@@ -35,7 +35,7 @@ export default function ControllerPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
 
-  async function refreshRemoteStatus(list = loadLocalDevices()) {
+  async function refreshRemoteStatus(list = loadLocalDevices(), background = false) {
     if (!tokenVerified) {
       setDevices(list.map((item) => ({ ...item, remote: undefined })));
       return;
@@ -46,7 +46,15 @@ export default function ControllerPanel() {
       return;
     }
 
-    setLoading(true);
+    if (!background) {
+      setDevices((prev) => {
+        const remoteById = new Map(prev.map((item) => [item.id, item.remote]));
+        return list.map((item) => ({ ...item, remote: remoteById.get(item.id) }));
+      });
+    }
+
+    const showBlockingLoader = !background && !devices.some((item) => item.remote !== undefined);
+    if (showBlockingLoader) setLoading(true);
     try {
       const remoteRows = await Promise.all(
         list.map(async (item) => {
@@ -60,15 +68,17 @@ export default function ControllerPanel() {
       );
       setDevices(remoteRows);
     } finally {
-      setLoading(false);
+      if (showBlockingLoader) setLoading(false);
     }
   }
 
   useEffect(() => {
     if (authLoading) return;
-    void refreshRemoteStatus();
+    const list = loadLocalDevices();
+    setDevices(list);
+    void refreshRemoteStatus(list, true);
     if (!tokenVerified) return;
-    const timer = setInterval(() => void refreshRemoteStatus(), 5000);
+    const timer = setInterval(() => void refreshRemoteStatus(undefined, true), 10000);
     return () => clearInterval(timer);
   }, [tokenVerified, authLoading]);
 

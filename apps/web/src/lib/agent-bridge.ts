@@ -123,13 +123,13 @@ export async function syncAgentServerUrl(serverUrl: string): Promise<AgentAction
   const current = state.server_url.replace(/\/$/, '');
   if (current === normalized) {
     if (state.agent_enabled && !state.online) {
-      return reconnectAgent();
+      void reconnectAgent();
     }
-    return { ok: true, state, online: state.online };
+    return { ok: true, state, online: state.online, message: '服务器地址未变更' };
   }
   const saved = await saveAgentSettings(agentStateToSavePayload(state, { server_url: normalized }));
-  if (saved.ok && saved.state?.agent_enabled && !saved.online) {
-    return reconnectAgent();
+  if (saved.ok && saved.state?.agent_enabled) {
+    void reconnectAgent();
   }
   return saved;
 }
