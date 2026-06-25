@@ -1,6 +1,6 @@
 # CloudDesk — 利用Cloudflare Workers + KV + D1 + R2自建免费开源远程桌面
 
-**v0.1.7** · [产品规格](Product.md) · [Cloudflare 部署](docs/deploy.md) · [VPS 自托管](docs/self-host.md)
+**v0.1.7** · [产品规格](https://www.gsvps.com/articles/news-19) · [Cloudflare 部署](https://www.gsvps.com/articles/news-20) · [VPS 自托管](https://www.gsvps.com/articles/news-21)
 
 CloudDesk 是一款**开源远程桌面**方案：用 **Cloudflare Workers**（免费套餐可用）或 **VPS 自托管** 提供 API 与 WebSocket 信令；桌面画面经 **WebRTC P2P 直连**，服务端不中转视频流。
 
@@ -96,7 +96,7 @@ npx wrangler login
 npm run deploy:cloudflare   # 构建 Web 入口 + 数据库迁移 + 部署 Worker
 ```
 
-详见 [docs/deploy.md](docs/deploy.md)。
+详见 [https://www.gsvps.com/articles/news-20](https://www.gsvps.com/articles/news-20)。
 
 ### VPS 自托管
 
@@ -105,7 +105,7 @@ docker compose up -d --build
 # 或本地开发：npm run dev:server
 ```
 
-详见 [docs/self-host.md](docs/self-host.md)。
+详见 [https://www.gsvps.com/articles/news-21](https://www.gsvps.com/articles/news-21)。
 
 ---
 
