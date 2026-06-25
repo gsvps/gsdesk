@@ -1,9 +1,14 @@
+import { useEffect } from 'react';
 import type { FileTransferUiState } from '../lib/file-transfer-ui';
+import { isFileTransferFailed, isFileTransferSuccess } from '../lib/file-transfer-ui';
 
 interface FileTransferStatusBarProps {
   state: FileTransferUiState;
   onDismiss: () => void;
 }
+
+/** 成功提示短暂展示后自动关闭 */
+const SUCCESS_AUTO_DISMISS_MS = 1500;
 
 export function FileTransferProgressBar({
   progress,
@@ -34,8 +39,15 @@ export function FileTransferProgressBar({
 }
 
 export default function FileTransferStatusBar({ state, onDismiss }: FileTransferStatusBarProps) {
+  const failed = isFileTransferFailed(state);
+  const success = isFileTransferSuccess(state);
   const done = state.progress === 100;
-  const failed = state.message.includes('失败') || state.message.includes('错误');
+
+  useEffect(() => {
+    if (!success) return;
+    const timer = window.setTimeout(onDismiss, SUCCESS_AUTO_DISMISS_MS);
+    return () => window.clearTimeout(timer);
+  }, [success, state.message, onDismiss]);
 
   return (
     <div

@@ -1200,7 +1200,7 @@ export default function RemotePage() {
           >
             <video
               ref={videoRef}
-              className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'block cursor-none' : 'hidden'}`}
+              className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'block' : 'hidden'}${isTouch ? ' cursor-none' : ''}`}
               autoPlay
               playsInline
               muted
@@ -1208,7 +1208,7 @@ export default function RemotePage() {
             />
             <canvas
               ref={canvasRef}
-              className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'hidden' : 'block cursor-none'}`}
+              className={`absolute inset-0 h-full w-full ${fitClass} ${useVideoTrack ? 'hidden' : 'block'}${isTouch ? ' cursor-none' : ''}`}
               {...(!useVideoTrack && !isTouch ? pointerHandlers : {})}
             />
             {contentLayout && isTouch && isConnected && (

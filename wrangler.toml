@@ -41,7 +41,7 @@ run_worker_first = true
 # 手机/浏览器控制端安全入口路径（修改后须 npm run build:web:app 再 deploy）
 WEB_APP_PATH = "/app"
 CONTROLLER_JWT_SECRET = "gsdesk-dev-controller-secret-change-me"
-CLIENT_LATEST_VERSION = "0.1.7"
+CLIENT_LATEST_VERSION = "0.1.8"
 CLIENT_DOWNLOAD_URL = "https://github.com/gsvps/gsdesk/releases/latest/download/gsdesk-client.exe"
 
 [build]
