@@ -29,6 +29,6 @@ new_sqlite_classes = ["DeviceRoom", "SessionRoom"]
 
 [vars]
 SKIP_SIGNATURE_VERIFY = "true"
-CLIENT_LATEST_VERSION = "0.1.8"
+CLIENT_LATEST_VERSION = "0.1.9"
 CLIENT_DOWNLOAD_URL = "https://github.com/gsvps/gsdesk/releases/latest"
 CONTROLLER_JWT_SECRET = "gsdesk-dev-controller-secret-change-me"

@@ -13,6 +13,7 @@ var (
 	procSetCursorPos = user32.NewProc("SetCursorPos")
 	procMouseEvent   = user32.NewProc("mouse_event")
 	procKeybdEvent   = user32.NewProc("keybd_event")
+	procVkKeyScanW   = user32.NewProc("VkKeyScanW")
 )
 
 const (
@@ -109,59 +110,105 @@ func KeyCombo(key string, ctrl, alt, shift bool) {
 	if alt {
 		keybdEvent(0x12, 0)
 	}
-	if shift {
-		keybdEvent(0x10, 0)
-	}
 
-	vk := keyToVK(key)
+	vk, keyShift := resolveKey(key)
 	if vk != 0 {
+		useShift := keyShift
+		if useShift {
+			keybdEvent(0x10, 0)
+		}
 		keybdEvent(vk, 0)
 		keybdEvent(vk, keyeventfKeyUp)
+		if useShift {
+			keybdEvent(0x10, keyeventfKeyUp)
+		}
 	}
 
-	if shift {
-		keybdEvent(0x10, keyeventfKeyUp)
-	}
 	if alt {
 		keybdEvent(0x12, keyeventfKeyUp)
 	}
 	if ctrl {
 		keybdEvent(0x11, keyeventfKeyUp)
 	}
+	_ = shift // shift 需求由 VkKeyScanW / resolveKey 决定，避免与浏览器重复
 }
 
 func keybdEvent(vk byte, flags uint32) {
 	_, _, _ = procKeybdEvent.Call(uintptr(vk), 0, uintptr(flags), 0)
 }
 
-func keyToVK(key string) byte {
+func resolveKey(key string) (vk byte, needShift bool) {
 	switch key {
-	case "Enter":
-		return 0x0D
+	case "Enter", "Return":
+		return 0x0D, false
 	case "Backspace":
-		return 0x08
+		return 0x08, false
 	case "Tab":
-		return 0x09
-	case "Escape":
-		return 0x1B
+		return 0x09, false
+	case "Escape", "Esc":
+		return 0x1B, false
+	case "Delete":
+		return 0x2E, false
+	case "Home":
+		return 0x24, false
+	case "End":
+		return 0x23, false
+	case "PageUp":
+		return 0x21, false
+	case "PageDown":
+		return 0x22, false
+	case "Insert":
+		return 0x2D, false
 	case "ArrowUp":
-		return 0x26
+		return 0x26, false
 	case "ArrowDown":
-		return 0x28
+		return 0x28, false
 	case "ArrowLeft":
-		return 0x25
+		return 0x25, false
 	case "ArrowRight":
-		return 0x27
+		return 0x27, false
 	case " ":
-		return 0x20
-	default:
-		if len(key) == 1 {
-			c := key[0]
-			if c >= 'a' && c <= 'z' {
-				c = c - 'a' + 'A'
+		return 0x20, false
+	}
+
+	if len(key) > 1 && key[0] == 'F' {
+		n := 0
+		for i := 1; i < len(key); i++ {
+			c := key[i]
+			if c < '0' || c > '9' {
+				n = 0
+				break
 			}
-			return byte(c)
+			n = n*10 + int(c-'0')
+		}
+		if n >= 1 && n <= 24 {
+			return byte(0x70 + n - 1), false
 		}
 	}
-	return 0
+
+	runes := []rune(key)
+	if len(runes) == 1 {
+		return charToVK(runes[0])
+	}
+	return 0, false
+}
+
+// charToVK 根据当前键盘布局把字符映射为虚拟键码与是否需 Shift。
+func charToVK(ch rune) (byte, bool) {
+	ret, _, _ := procVkKeyScanW.Call(uintptr(ch))
+	if int16(ret) == -1 {
+		if ch >= 'a' && ch <= 'z' {
+			return byte(ch - 'a' + 'A'), false
+		}
+		if ch >= 'A' && ch <= 'Z' {
+			return byte(ch), true
+		}
+		if ch >= '0' && ch <= '9' {
+			return byte(ch), false
+		}
+		return 0, false
+	}
+	vk := byte(ret & 0xFF)
+	needShift := (ret>>8)&1 != 0
+	return vk, needShift
 }
