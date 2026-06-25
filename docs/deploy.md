@@ -21,7 +21,9 @@ Windows 控制与被控请使用 **[gsdesk-client.exe](https://github.com/gsvps/
 
 ## 一键部署
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/gsvps/gsdesk/tree/main)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/)
+
+点击后在部署页填入仓库地址：`https://github.com/gsvps/gsdesk`
 
 ### 需创建的资源
 
