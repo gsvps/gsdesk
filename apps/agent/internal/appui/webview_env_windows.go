@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/clouddesk/agent/internal/config"
+	"github.com/gsvps/gsdesk/internal/config"
 )
 
 var webViewEnvOnce sync.Once

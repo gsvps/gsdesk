@@ -14,7 +14,7 @@ function bridgeURL(name: string, query?: Record<string, string>): string {
     query && Object.keys(query).length
       ? '?' + new URLSearchParams(query).toString()
       : '';
-  return `/__clouddesk/bridge/${name}${qs}`;
+  return `/__gsdesk/bridge/${name}${qs}`;
 }
 
 async function bridgeGet(name: string, query?: Record<string, string>): Promise<string> {

@@ -1,4 +1,4 @@
-import type { SignalMessage } from '@clouddesk/protocol';
+import type { SignalMessage } from '@gsdesk/protocol';
 import type { Env } from '../../../worker/src/env.js';
 import { DeviceRoomHandler } from './device-room.js';
 import { SessionRoomHandler } from './session-room.js';

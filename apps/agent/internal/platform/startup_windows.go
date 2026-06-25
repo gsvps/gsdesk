@@ -12,7 +12,7 @@ import (
 
 const (
 	runKeyPath = `Software\Microsoft\Windows\CurrentVersion\Run`
-	appRunName = "CloudDesk"
+	appRunName = "GSDesk"
 )
 
 func SetAutostart(enabled bool) error {

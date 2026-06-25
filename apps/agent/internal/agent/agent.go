@@ -8,16 +8,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/clouddesk/agent/internal/api"
-	"github.com/clouddesk/agent/internal/capture"
-	"github.com/clouddesk/agent/internal/config"
-	"github.com/clouddesk/agent/internal/crypto"
-	"github.com/clouddesk/agent/internal/input"
-	"github.com/clouddesk/agent/internal/platform"
-	"github.com/clouddesk/agent/internal/signal"
-	"github.com/clouddesk/agent/internal/transfer"
-	"github.com/clouddesk/agent/internal/ui"
-	agentwebrtc "github.com/clouddesk/agent/internal/webrtc"
+	"github.com/gsvps/gsdesk/internal/api"
+	"github.com/gsvps/gsdesk/internal/capture"
+	"github.com/gsvps/gsdesk/internal/config"
+	"github.com/gsvps/gsdesk/internal/crypto"
+	"github.com/gsvps/gsdesk/internal/input"
+	"github.com/gsvps/gsdesk/internal/platform"
+	"github.com/gsvps/gsdesk/internal/signal"
+	"github.com/gsvps/gsdesk/internal/transfer"
+	"github.com/gsvps/gsdesk/internal/ui"
+	agentwebrtc "github.com/gsvps/gsdesk/internal/webrtc"
 )
 
 var sessionPromptLocks sync.Map // sessionID -> *sync.Mutex

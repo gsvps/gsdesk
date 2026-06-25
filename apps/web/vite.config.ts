@@ -6,8 +6,8 @@ export default defineConfig({
   base:
     process.env.VITE_EMBED === '1'
       ? './'
-      : process.env.CLOUDDESK_WEB_APP_PATH
-        ? `${String(process.env.CLOUDDESK_WEB_APP_PATH).replace(/\/$/, '')}/`
+      : process.env.GSDESK_WEB_APP_PATH
+        ? `${String(process.env.GSDESK_WEB_APP_PATH).replace(/\/$/, '')}/`
         : '/',
   plugins: [react(), tailwindcss()],
     server: {

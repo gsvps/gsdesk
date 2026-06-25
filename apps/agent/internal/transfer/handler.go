@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/clouddesk/agent/internal/api"
+	"github.com/gsvps/gsdesk/internal/api"
 )
 
 type Handler struct {

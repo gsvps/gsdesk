@@ -1,4 +1,4 @@
-import type { SignalMessage } from '@clouddesk/protocol';
+import type { SignalMessage } from '@gsdesk/protocol';
 import type { SessionCreateResult } from './api';
 import { resolveSignalUrl } from './signal-url';
 

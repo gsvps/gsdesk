@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/clouddesk/agent/internal/config"
+	"github.com/gsvps/gsdesk/internal/config"
 	"github.com/sqweek/dialog"
 )
 
@@ -182,7 +182,7 @@ func showInfo(msg string) {
 }
 
 func showMessageBox(msg string, icon uint32) {
-	title, _ := syscall.UTF16PtrFromString("CloudDesk")
+	title, _ := syscall.UTF16PtrFromString("GSDesk")
 	text, _ := syscall.UTF16PtrFromString(msg)
 	user32 := syscall.NewLazyDLL("user32.dll")
 	messageBoxW := user32.NewProc("MessageBoxW")

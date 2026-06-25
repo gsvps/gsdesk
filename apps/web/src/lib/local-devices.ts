@@ -4,7 +4,7 @@ export interface LocalDevice {
   added_at: number;
 }
 
-const STORAGE_KEY = 'clouddesk_local_devices';
+const STORAGE_KEY = 'gsdesk_local_devices';
 
 export function isValidDeviceId(id: string): boolean {
   return /^\d{8}$/.test(id.trim());

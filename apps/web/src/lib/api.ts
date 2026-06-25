@@ -12,7 +12,7 @@ interface ApiError {
 
 type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
-const TOKEN_KEY = 'clouddesk_token';
+const TOKEN_KEY = 'gsdesk_token';
 
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -44,7 +44,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     const hint =
       apiBase ||
       (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8787');
-    throw new Error(`无法连接服务器（${hint}），请确认 CloudDesk Worker 已启动`);
+    throw new Error(`无法连接服务器（${hint}），请确认 GSDesk Worker 已启动`);
   }
 
   let body: ApiResponse<T>;

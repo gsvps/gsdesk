@@ -1,4 +1,4 @@
-# CloudDesk 开发文档
+# GSDesk 开发文档
 
 与 [README.md](README.md) 对齐的当前实现说明（**v0.1.7**）。
 
@@ -6,7 +6,7 @@
 
 ## 1. 项目定位
 
-CloudDesk 是开源远程桌面：**Cloudflare Worker 或 VPS 自托管** 提供 API + WebSocket 信令；**Windows 主客户端** `clouddesk-client.exe`（本地 UI `http://127.0.0.1:19527`）同时承担控制端与被控端。桌面画面经 **WebRTC P2P** 直连，服务端不转发视频流。
+GSDesk 是开源远程桌面：**Cloudflare Worker 或 VPS 自托管** 提供 API + WebSocket 信令；**Windows 主客户端** `gsdesk-client.exe`（本地 UI `http://127.0.0.1:19527`）同时承担控制端与被控端。桌面画面经 **WebRTC P2P** 直连，服务端不转发视频流。
 
 此外，Worker / VPS 在可配置路径（默认 `/app/`）托管**轻量 Web 控制端**，供手机或浏览器远程连接；根路径 `/` 仍返回 `success`，用于健康探测。
 
@@ -33,7 +33,7 @@ CloudDesk 是开源远程桌面：**Cloudflare Worker 或 VPS 自托管** 提供
          └─────────────────┬────────────────────────┘
                            │ HTTPS / WSS
                            ▼
-              clouddesk-client.exe（Windows）
+              gsdesk-client.exe（Windows）
               127.0.0.1:19527  控制 + 被控
                            │
               WebRTC P2P ◄──────────────► 对端 Agent
@@ -70,7 +70,7 @@ Cloudflare / VPS 负责：
 ## 4. 目录结构
 
 ```text
-CloudDesk/
+GSDesk/
 ├── apps/
 │   ├── web/           # 控制端 UI（嵌入 exe + Worker/VPS 托管）
 │   ├── worker/        # Cloudflare Worker API
@@ -104,7 +104,7 @@ CloudDesk/
 | `CONTROLLER_JWT_SECRET` | 开发默认 | 与客户端令牌一致 |
 | `SKIP_SIGNATURE_VERIFY` | `false` | 生产建议保持 `false` |
 | `PORT` | `8787` | HTTP + WebSocket |
-| `CLOUDDESK_DATA` | `./data` | SQLite 与文件 |
+| `GSDESK_DATA` | `./data` | SQLite 与文件 |
 
 `GET /api/health` 返回 `web_app_entry`（如 `/app/`），客户端设置页据此显示手机链接。
 
@@ -201,10 +201,10 @@ GET    /ws/session/:sessionId
 
 ## 10. Windows 客户端
 
-- 下载：[GitHub Releases v0.1.7](https://github.com/gsvps/cloud-desk/releases/tag/v0.1.7)（`latest` 始终指向最新）
+- 下载：[GitHub Releases v0.1.7](https://github.com/gsvps/gsdesk/releases/tag/v0.1.7)（`latest` 始终指向最新）
 - 三栏 UI：本机 / 设置 / 远程控制
-- 配置：`localStorage`（API、JWT）+ `%USERPROFILE%\.clouddesk\config.json`（Agent）
-- 编译：`apps/agent/build-client.ps1`（先 `npm run build -w @clouddesk/web`）
+- 配置：`localStorage`（API、JWT）+ `%USERPROFILE%\.gsdesk\config.json`（Agent）
+- 编译：`apps/agent/build-client.ps1`（先 `npm run build -w @gsdesk/web`）
 - CI：打 tag `v*` 时自动构建并上传 exe
 
 ---
@@ -250,7 +250,7 @@ GitHub Actions（`.github/workflows/ci.yml`）：
 
 - `test`：typecheck + vitest
 - `agent`：build web + `build-client.ps1` + `go test`
-- `release`：打 tag `v*` 时上传 `clouddesk-client.exe`
+- `release`：打 tag `v*` 时上传 `gsdesk-client.exe`
 
 ---
 

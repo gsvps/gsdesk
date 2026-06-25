@@ -30,7 +30,7 @@ export function clientDownloadURL(env: Env, platform: string): string {
   const fromEnv = env.CLIENT_DOWNLOAD_URL?.trim();
   if (fromEnv) return fromEnv;
   if (platform === 'windows') {
-    return 'https://github.com/clouddesk/clouddesk/releases/latest';
+    return 'https://github.com/gsvps/gsdesk/releases/latest';
   }
   return '';
 }

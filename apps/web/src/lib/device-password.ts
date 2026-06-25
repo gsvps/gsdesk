@@ -2,7 +2,7 @@ import type { DeviceInfo } from './api';
 
 export type AccessPasswordType = 'permanent' | 'otp';
 
-const REMEMBER_PREFIX = 'clouddesk:remembered-password:';
+const REMEMBER_PREFIX = 'gsdesk:remembered-password:';
 
 export function getRememberedPassword(deviceId: string): string | null {
   try {

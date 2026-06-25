@@ -33,10 +33,10 @@ func Load() (*Config, error) {
 	}
 
 	cfg := &Config{
-		ServerURL:  envOrDefault("CLOUDDESK_SERVER", "http://127.0.0.1:8787"),
-		DeviceName: envOrDefault("CLOUDDESK_DEVICE_NAME", hostnameOrDefault()),
+		ServerURL:  envOrDefault("GSDESK_SERVER", "http://127.0.0.1:8787"),
+		DeviceName: envOrDefault("GSDESK_DEVICE_NAME", hostnameOrDefault()),
 		Hostname:   hostnameOrDefault(),
-		OS:         envOrDefault("CLOUDDESK_OS", "windows"),
+		OS:         envOrDefault("GSDESK_OS", "windows"),
 	}
 
 	if raw, err := os.ReadFile(path); err == nil {

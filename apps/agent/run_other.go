@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/clouddesk/agent/internal/agent"
+	"github.com/gsvps/gsdesk/internal/agent"
 )
 
 func runPlatform(a *agent.Agent) {
@@ -21,8 +21,8 @@ func runPlatform(a *agent.Agent) {
 		}
 	}()
 
-	log.Printf("CloudDesk Agent running, device=%s", a.DeviceID())
+	log.Printf("GSDesk Agent running, device=%s", a.DeviceID())
 	<-stop
 	a.Close()
-	log.Println("CloudDesk Agent stopped")
+	log.Println("GSDesk Agent stopped")
 }

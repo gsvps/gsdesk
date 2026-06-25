@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/clouddesk/agent/internal/netutil"
+	"github.com/gsvps/gsdesk/internal/netutil"
 	"github.com/gorilla/websocket"
 )
 

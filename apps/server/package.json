@@ -1,5 +1,5 @@
 {
-  "name": "@clouddesk/server",
+  "name": "@gsdesk/server",
   "version": "0.1.7",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "db:migrate": "tsx src/migrate.ts"
   },
   "dependencies": {
-    "@clouddesk/protocol": "*",
+    "@gsdesk/protocol": "*",
     "@hono/node-server": "^1.14.4",
     "better-sqlite3": "^11.10.0",
     "drizzle-orm": "^0.44.2",

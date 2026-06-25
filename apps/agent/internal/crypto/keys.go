@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/clouddesk/agent/internal/config"
+	"github.com/gsvps/gsdesk/internal/config"
 )
 
 type KeyPair struct {

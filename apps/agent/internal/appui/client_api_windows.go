@@ -2,7 +2,7 @@
 
 package appui
 
-import "github.com/clouddesk/agent/internal/config"
+import "github.com/gsvps/gsdesk/internal/config"
 
 type AgentFactory func(*config.Config) (AgentView, SaveFunc, error)
 

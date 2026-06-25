@@ -25,10 +25,10 @@ const base = `${webAppPath}/`;
 
 console.log(`Building web control UI with base: ${base}`);
 
-execSync(`npm run build -w @clouddesk/web -- --base ${base}`, {
+execSync(`npm run build -w @gsdesk/web -- --base ${base}`, {
   cwd: root,
   stdio: 'inherit',
-  env: { ...process.env, CLOUDDESK_WEB_APP_PATH: webAppPath },
+  env: { ...process.env, GSDESK_WEB_APP_PATH: webAppPath },
 });
 
 const indexPath = path.join(root, 'apps/web/dist/index.html');
@@ -36,9 +36,9 @@ if (fs.existsSync(indexPath)) {
   let html = fs.readFileSync(indexPath, 'utf8');
   const inject = [
     `    <base href="${base}" />`,
-    `    <script>window.__CLOUDDESK_WEB_BASENAME__="${webAppPath}"</script>`,
+    `    <script>window.__GSDESK_WEB_BASENAME__="${webAppPath}"</script>`,
   ].join('\n');
-  if (!html.includes('__CLOUDDESK_WEB_BASENAME__')) {
+  if (!html.includes('__GSDESK_WEB_BASENAME__')) {
     html = html.replace(/(<meta name="viewport"[^>]*>)/, `$1\n${inject}`);
     fs.writeFileSync(indexPath, html);
     console.log(`Injected web app basename ${webAppPath} into index.html`);

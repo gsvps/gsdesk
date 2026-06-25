@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/clouddesk/agent/internal/config"
+	"github.com/gsvps/gsdesk/internal/config"
 )
 
 // Init writes log output under the install log directory (GUI builds have no console).
@@ -23,5 +23,5 @@ func Init() {
 	}
 	log.SetOutput(io.MultiWriter(f))
 	log.SetFlags(log.LstdFlags)
-	log.Printf("CloudDesk Agent log initialized")
+	log.Printf("GSDesk Agent log initialized")
 }

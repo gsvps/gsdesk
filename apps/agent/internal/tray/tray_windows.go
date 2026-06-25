@@ -30,8 +30,8 @@ func Run(opts Options) {
 
 func onReady(opts Options) {
 	systray.SetIcon(iconData)
-	systray.SetTitle("CloudDesk")
-	systray.SetTooltip(fmt.Sprintf("CloudDesk\nDevice: %s", opts.DeviceID))
+	systray.SetTitle("GSDesk")
+	systray.SetTooltip(fmt.Sprintf("GSDesk\nDevice: %s", opts.DeviceID))
 
 	deviceItem := systray.AddMenuItem(fmt.Sprintf("设备 ID: %s", opts.DeviceID), "")
 	deviceItem.Disable()
@@ -40,10 +40,10 @@ func onReady(opts Options) {
 	statusItem.Disable()
 
 	systray.AddSeparator()
-	mainItem := systray.AddMenuItem("打开主界面", "Open CloudDesk")
+	mainItem := systray.AddMenuItem("打开主界面", "Open GSDesk")
 	settingsItem := systray.AddMenuItem("设置", "Open settings")
 	systray.AddSeparator()
-	quitItem := systray.AddMenuItem("退出", "Quit CloudDesk")
+	quitItem := systray.AddMenuItem("退出", "Quit GSDesk")
 
 	go func() {
 		ticker := time.NewTicker(3 * time.Second)

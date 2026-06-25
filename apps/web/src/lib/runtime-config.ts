@@ -12,7 +12,7 @@ export interface RuntimeConfig {
 declare global {
   interface Window {
     getRuntimeConfig?: () => Promise<string> | string;
-    __CLOUDDESK_WEB_BASENAME__?: string;
+    __GSDESK_WEB_BASENAME__?: string;
   }
 }
 
@@ -61,7 +61,7 @@ function detectHostedPathFromLocation(): string | null {
   if (typeof window === 'undefined') return null;
   const pathname = window.location.pathname;
   const candidates = [
-    window.__CLOUDDESK_WEB_BASENAME__,
+    window.__GSDESK_WEB_BASENAME__,
     detectBasenameFromBaseTag(),
     detectBasenameFromScriptTag(),
     '/app',
@@ -78,7 +78,7 @@ function detectHostedPathFromLocation(): string | null {
 
 export function webAppBasename(): string {
   const injected = normalizeBasename(
-    typeof window !== 'undefined' ? window.__CLOUDDESK_WEB_BASENAME__ : undefined
+    typeof window !== 'undefined' ? window.__GSDESK_WEB_BASENAME__ : undefined
   );
   if (injected) return injected;
 

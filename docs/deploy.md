@@ -1,6 +1,6 @@
-# CloudDesk Cloudflare 部署指南
+# GSDesk Cloudflare 部署指南
 
-CloudDesk 支持两种**互相隔离**的后端：Cloudflare Workers 与 VPS 自托管。本文说明 **Cloudflare** 部署；VPS 见 [self-host.md](./self-host.md)。
+GSDesk 支持两种**互相隔离**的后端：Cloudflare Workers 与 VPS 自托管。本文说明 **Cloudflare** 部署；VPS 见 [self-host.md](./self-host.md)。
 
 | 方式 | 文档 | 配置文件 |
 |------|------|----------|
@@ -15,30 +15,30 @@ CloudDesk 支持两种**互相隔离**的后端：Cloudflare Workers 与 VPS 自
 | `https://你的域名/app/` | 手机 / 浏览器控制界面（默认路径，可配置） |
 | `GET /api/health` | JSON，含 `web_app_entry` 字段 |
 
-Windows 控制与被控请使用 **[clouddesk-client.exe](https://github.com/gsvps/cloud-desk/releases/latest/download/clouddesk-client.exe)**，在本地 UI（`127.0.0.1:19527`）填写 Worker 地址与 JWT。
+Windows 控制与被控请使用 **[gsdesk-client.exe](https://github.com/gsvps/gsdesk/releases/latest/download/gsdesk-client.exe)**，在本地 UI（`127.0.0.1:19527`）填写 Worker 地址与 JWT。
 
 ---
 
 ## 一键部署
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/gsvps/cloud-desk/tree/main)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/gsvps/gsdesk/tree/main)
 
 ### 需创建的资源
 
 | 资源 | 默认名称 | 用途 |
 |------|----------|------|
-| D1 | `clouddesk` | 设备、会话、审计 |
-| KV | `clouddesk` | OTP、限流、Token |
-| R2 | `clouddesk-files` | 会话文件传输 |
+| D1 | `gsdesk` | 设备、会话、审计 |
+| KV | `gsdesk` | OTP、限流、Token |
+| R2 | `gsdesk-files` | 会话文件传输 |
 | Durable Objects | `DeviceRoom`, `SessionRoom` | WebSocket 信令 |
 
-一键部署页中 KV 命名空间名称填 **`clouddesk`**（与 D1 同名，类型不同不冲突）。
+一键部署页中 KV 命名空间名称填 **`gsdesk`**（与 D1 同名，类型不同不冲突）。
 
 部署后：
 
 1. 访问 `/` 确认 **`success`**
 2. 访问 `/app/` 确认 Web 控制端可打开
-3. 下载运行 `clouddesk-client.exe`
+3. 下载运行 `gsdesk-client.exe`
 4. 在 **设置** 填写 Worker URL 与 `CONTROLLER_JWT_SECRET`
 
 ---
@@ -46,8 +46,8 @@ Windows 控制与被控请使用 **[clouddesk-client.exe](https://github.com/gsv
 ## 手动部署
 
 ```bash
-git clone https://github.com/gsvps/cloud-desk.git
-cd CloudDesk
+git clone https://github.com/gsvps/gsdesk.git
+cd GSDesk
 npm install
 npx wrangler login
 npm run deploy:cloudflare
@@ -64,7 +64,7 @@ npm run deploy:cloudflare
 ```bash
 npm run build:web:app
 npm run db:migrate
-wrangler deploy --config wrangler.toml --name cloud-desk
+wrangler deploy --config wrangler.toml --name gsdesk
 ```
 
 ---
@@ -93,7 +93,7 @@ wrangler deploy --config wrangler.toml --name cloud-desk
 ## 本地开发
 
 ```bash
-npm run db:migrate:local -w @clouddesk/worker
+npm run db:migrate:local -w @gsdesk/worker
 npm run dev:worker          # http://127.0.0.1:8787
 ```
 
@@ -115,7 +115,7 @@ curl http://127.0.0.1:8787/api/health    # 含 web_app_entry
 在客户端 **设置** 填写 Worker 地址，或设置环境变量：
 
 ```powershell
-$env:CLOUDDESK_SERVER = "https://your-worker.example.com"
+$env:GSDESK_SERVER = "https://your-worker.example.com"
 ```
 
 ---
@@ -129,7 +129,7 @@ git tag v0.1.7
 git push origin v0.1.7
 ```
 
-CI 会自动编译 `clouddesk-client.exe` 并附到 Release。`CLIENT_DOWNLOAD_URL` 默认指向 `releases/latest/download/…`。
+CI 会自动编译 `gsdesk-client.exe` 并附到 Release。`CLIENT_DOWNLOAD_URL` 默认指向 `releases/latest/download/…`。
 
 ---
 
@@ -143,7 +143,7 @@ CI 会自动编译 `clouddesk-client.exe` 并附到 Release。`CLIENT_DOWNLOAD_U
 | 令牌无效 | 客户端令牌 = Worker `CONTROLLER_JWT_SECRET` |
 | 连接密码错误 | OTP 6 位一次性；永久密码在「本机」栏设置；输入框自动识别 |
 | WebRTC 失败 | 检查 NAT / 防火墙；当前版本无 TURN 中继 |
-| 传文件失败 | 确认 R2 绑定 `clouddesk-files` 且 bucket 已创建 |
+| 传文件失败 | 确认 R2 绑定 `gsdesk-files` 且 bucket 已创建 |
 
 ---
 

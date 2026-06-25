@@ -14,9 +14,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/clouddesk/agent/internal/config"
-	"github.com/clouddesk/agent/internal/netutil"
-	"github.com/clouddesk/agent/internal/version"
+	"github.com/gsvps/gsdesk/internal/config"
+	"github.com/gsvps/gsdesk/internal/netutil"
+	"github.com/gsvps/gsdesk/internal/version"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
@@ -58,9 +58,9 @@ func BrowseInstallDir(current string) string {
 	return current
 }
 
-// InstalledExePath returns the installed CloudDesk executable path.
+// InstalledExePath returns the installed GSDesk executable path.
 func InstalledExePath(installDir string) string {
-	return filepath.Join(filepath.Clean(strings.TrimSpace(installDir)), "CloudDesk.exe")
+	return filepath.Join(filepath.Clean(strings.TrimSpace(installDir)), "GSDesk.exe")
 }
 
 type InstallRequest struct {
@@ -97,7 +97,7 @@ func RunInstallWithOptions(req InstallRequest, onProgress ProgressFunc) Result {
 	if err != nil {
 		return Result{OK: false, Error: err.Error()}
 	}
-	destExe := filepath.Join(targetDir, "CloudDesk.exe")
+	destExe := filepath.Join(targetDir, "GSDesk.exe")
 	if !samePath(exe, destExe) {
 		report(onProgress, "正在复制程序…", 22)
 		if err := copyFile(exe, destExe); err != nil {
@@ -127,11 +127,11 @@ func RunInstallWithOptions(req InstallRequest, onProgress ProgressFunc) Result {
 		}
 	}
 
-	report(onProgress, "正在启动 CloudDesk…", 98)
+	report(onProgress, "正在启动 GSDesk…", 98)
 	report(onProgress, "安装完成", 100)
 	return Result{
 		OK:         true,
-		Message:    "安装完成，正在启动 CloudDesk…",
+		Message:    "安装完成，正在启动 GSDesk…",
 		InstallDir: targetDir,
 		Relaunch:   true,
 	}
@@ -142,7 +142,7 @@ func migrateLegacyData(targetDir string) error {
 	if err != nil {
 		return nil
 	}
-	legacyDir := filepath.Join(home, ".clouddesk")
+	legacyDir := filepath.Join(home, ".gsdesk")
 	destDir := filepath.Join(targetDir, "data")
 	for _, name := range []string{"config.json", "device.key"} {
 		src := filepath.Join(legacyDir, name)
@@ -308,7 +308,7 @@ func createDesktopShortcut(exePath, workDir string) error {
 	if err := os.MkdirAll(desktop, 0o755); err != nil {
 		return err
 	}
-	lnk := filepath.Join(desktop, "CloudDesk.lnk")
+	lnk := filepath.Join(desktop, "GSDesk.lnk")
 	script := fmt.Sprintf(
 		"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('%s');$s.TargetPath='%s';$s.WorkingDirectory='%s';$s.Save()",
 		escapePSSingleQuoted(lnk),

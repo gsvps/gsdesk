@@ -5,7 +5,7 @@ package appui
 import (
 	"strings"
 
-	"github.com/clouddesk/agent/internal/config"
+	"github.com/gsvps/gsdesk/internal/config"
 )
 
 func getControllerToken(cfg *config.Config) string {

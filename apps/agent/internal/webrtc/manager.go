@@ -6,10 +6,10 @@ import (
 	"log"
 	"sync"
 
-	"github.com/clouddesk/agent/internal/capture"
-	"github.com/clouddesk/agent/internal/clipboard"
-	"github.com/clouddesk/agent/internal/input"
-	"github.com/clouddesk/agent/internal/signal"
+	"github.com/gsvps/gsdesk/internal/capture"
+	"github.com/gsvps/gsdesk/internal/clipboard"
+	"github.com/gsvps/gsdesk/internal/input"
+	"github.com/gsvps/gsdesk/internal/signal"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -106,7 +106,7 @@ func (m *Manager) createSession(msg signal.Message) (*Session, error) {
 		videoTrack, err = webrtc.NewTrackLocalStaticSample(
 			webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeVP8},
 			"video",
-			"clouddesk",
+			"gsdesk",
 		)
 		if err != nil {
 			pc.Close()

@@ -18,9 +18,9 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npm run typecheck -w @clouddesk/worker
-      - run: npm run typecheck -w @clouddesk/web
-      - run: npm run test -w @clouddesk/worker
+      - run: npm run typecheck -w @gsdesk/worker
+      - run: npm run typecheck -w @gsdesk/web
+      - run: npm run test -w @gsdesk/worker
 
   agent:
     runs-on: windows-latest
@@ -76,5 +76,5 @@ jobs:
       - run: powershell -ExecutionPolicy Bypass -File apps/agent/build-client.ps1
       - uses: softprops/action-gh-release@v2
         with:
-          files: apps/agent/clouddesk-client.exe
+          files: apps/agent/gsdesk-client.exe
           generate_release_notes: true

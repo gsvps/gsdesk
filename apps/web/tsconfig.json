@@ -16,7 +16,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@clouddesk/protocol": ["../../packages/protocol/src/index.ts"]
+      "@gsdesk/protocol": ["../../packages/protocol/src/index.ts"]
     }
   },
   "include": ["src"]

@@ -8,11 +8,11 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/clouddesk/agent/internal/config"
+	"github.com/gsvps/gsdesk/internal/config"
 )
 
 func mountClientHandlers(mux *http.ServeMux, cfg *config.Config) {
-	mux.HandleFunc("/__clouddesk/raise", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/raise", func(w http.ResponseWriter, r *http.Request) {
 		showOrRestoreActiveWindow()
 		w.WriteHeader(http.StatusNoContent)
 	})

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/clouddesk/agent/internal/netutil"
+	"github.com/gsvps/gsdesk/internal/netutil"
 )
 
 type Client struct {

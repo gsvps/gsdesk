@@ -1,4 +1,4 @@
-module github.com/clouddesk/agent
+module github.com/gsvps/gsdesk
 
 go 1.22.0
 

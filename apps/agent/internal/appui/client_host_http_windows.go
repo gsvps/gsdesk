@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/clouddesk/agent/internal/config"
+	"github.com/gsvps/gsdesk/internal/config"
 )
 
 var (

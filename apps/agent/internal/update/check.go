@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/clouddesk/agent/internal/netutil"
-	"github.com/clouddesk/agent/internal/version"
+	"github.com/gsvps/gsdesk/internal/netutil"
+	"github.com/gsvps/gsdesk/internal/version"
 )
 
 type Result struct {

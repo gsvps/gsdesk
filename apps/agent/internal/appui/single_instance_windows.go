@@ -11,7 +11,7 @@ import (
 // TryActivateExistingInstance asks a running client to restore its window.
 func TryActivateExistingInstance() bool {
 	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/__clouddesk/raise", DefaultLocalUIPort))
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/__gsdesk/raise", DefaultLocalUIPort))
 	if err != nil {
 		return false
 	}

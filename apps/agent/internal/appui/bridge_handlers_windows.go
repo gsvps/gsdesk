@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/clouddesk/agent/internal/config"
-	"github.com/clouddesk/agent/internal/install"
-	"github.com/clouddesk/agent/internal/update"
+	"github.com/gsvps/gsdesk/internal/config"
+	"github.com/gsvps/gsdesk/internal/install"
+	"github.com/gsvps/gsdesk/internal/update"
 	"github.com/sqweek/dialog"
 )
 
@@ -59,7 +59,7 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		_, _ = w.Write([]byte(mustJSON(v)))
 	}
 
-	mux.HandleFunc("/__clouddesk/bridge/getRuntimeConfig", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/getRuntimeConfig", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -72,11 +72,11 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/getControllerTokenGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/getControllerTokenGo", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": true, "token": getControllerToken(cfg)})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/saveControllerTokenGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/saveControllerTokenGo", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		var req struct {
 			Token string `json:"token"`
@@ -89,15 +89,15 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		writeJSON(w, saveControllerToken(cfg, token))
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/notifyUIReadyGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/notifyUIReadyGo", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, actionResult{OK: true})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/getInitialState", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/getInitialState", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, buildUIState(cfg, agentView()))
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/refreshAgentStatus", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/refreshAgentStatus", func(w http.ResponseWriter, r *http.Request) {
 		agent := agentView()
 		if agent == nil {
 			state := buildUIState(cfg, nil)
@@ -108,7 +108,7 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		writeJSON(w, actionResult{OK: true, Online: state.Online, State: &state})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/reconnectAgentGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/reconnectAgentGo", func(w http.ResponseWriter, r *http.Request) {
 		agent := agentView()
 		if agent == nil {
 			writeJSON(w, actionResult{OK: false, Error: "Agent 服务未就绪"})
@@ -121,7 +121,7 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		writeJSON(w, actionResult{OK: true, Online: state.Online, State: &state, Message: "正在连接…"})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/copyText", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/copyText", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		var req struct {
 			Text string `json:"text"`
@@ -142,12 +142,12 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		writeJSON(w, actionResult{OK: true})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/browseDownloadDirGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/browseDownloadDirGo", func(w http.ResponseWriter, r *http.Request) {
 		current := r.URL.Query().Get("current")
 		writeJSON(w, browseDownloadDir(current))
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/generateOTPGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/generateOTPGo", func(w http.ResponseWriter, r *http.Request) {
 		agent := agentView()
 		if agent == nil {
 			writeJSON(w, actionResult{OK: false, Error: "Agent 服务未就绪"})
@@ -166,7 +166,7 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		writeJSON(w, actionResult{OK: true, Message: "正在生成一次性密码…"})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/refreshOTPGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/refreshOTPGo", func(w http.ResponseWriter, r *http.Request) {
 		agent := agentView()
 		if agent == nil {
 			writeJSON(w, actionResult{OK: false, Error: "Agent 服务未就绪"})
@@ -180,7 +180,7 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		writeJSON(w, actionResult{OK: true, Code: code, ExpiresIn: expiresIn})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/getOTPStatusGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/getOTPStatusGo", func(w http.ResponseWriter, r *http.Request) {
 		agent := agentView()
 		if agent == nil {
 			writeJSON(w, actionResult{OK: false, Error: "Agent 服务未就绪"})
@@ -196,7 +196,7 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/clearPermanentPasswordGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/clearPermanentPasswordGo", func(w http.ResponseWriter, r *http.Request) {
 		agent := agentView()
 		if agent == nil {
 			writeJSON(w, actionResult{OK: false, Error: "Agent 服务未就绪"})
@@ -209,7 +209,7 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		writeJSON(w, actionResult{OK: true, Message: "已清除自定义密码。"})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/saveSettingsGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/saveSettingsGo", func(w http.ResponseWriter, r *http.Request) {
 		raw, _ := io.ReadAll(r.Body)
 		payload, err := parseSavePayload(raw)
 		if err != nil {
@@ -219,17 +219,17 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		writeJSON(w, applySave(cfg, saveFn(), agentView(), payload))
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/closeWindowGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/closeWindowGo", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, actionResult{OK: true, Message: "可在浏览器中关闭此标签页，Agent 仍在托盘运行"})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/getInstallStateGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/getInstallStateGo", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, install.GetState())
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/browseInstallDirGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/browseInstallDirGo", func(w http.ResponseWriter, r *http.Request) {
 		current := r.URL.Query().Get("current")
-		path, err := dialog.Directory().Title("选择 CloudDesk 安装目录").Browse()
+		path, err := dialog.Directory().Title("选择 GSDesk 安装目录").Browse()
 		if err != nil || path == "" {
 			if current != "" {
 				writeJSON(w, current)
@@ -241,7 +241,7 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		writeJSON(w, path)
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/runInstallGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/runInstallGo", func(w http.ResponseWriter, r *http.Request) {
 		raw, _ := io.ReadAll(r.Body)
 		req := parseInstallRequest(raw)
 
@@ -297,21 +297,21 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		writeJSON(w, map[string]any{"ok": true, "started": true})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/getInstallProgressGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/getInstallProgressGo", func(w http.ResponseWriter, r *http.Request) {
 		installMu.Lock()
 		defer installMu.Unlock()
 		writeJSON(w, installProgress)
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/getClientVersionGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/getClientVersionGo", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": true, "version": update.CurrentVersion()})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/checkUpdateGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/checkUpdateGo", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, update.Check(cfg.ServerURL))
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/openExternalGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/openExternalGo", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		var req struct {
 			URL string `json:"url"`
@@ -328,11 +328,11 @@ func mountBridgeHandlers(mux *http.ServeMux, session *bridgeSession) {
 		writeJSON(w, actionResult{OK: true})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/setWindowFullscreenGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/setWindowFullscreenGo", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": true, "fullscreen": false})
 	})
 
-	mux.HandleFunc("/__clouddesk/bridge/isWindowFullscreenGo", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/__gsdesk/bridge/isWindowFullscreenGo", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": true, "fullscreen": false})
 	})
 }
@@ -385,7 +385,7 @@ func defaultInstallSuccess(installDir string) error {
 	cmd := exec.Command(installedExe, "--from-install")
 	cmd.Dir = installDir
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("安装完成，但无法启动 CloudDesk: %w\n\n请手动运行:\n%s", err, installedExe)
+		return fmt.Errorf("安装完成，但无法启动 GSDesk: %w\n\n请手动运行:\n%s", err, installedExe)
 	}
 	exitApplication(nil)
 	return nil

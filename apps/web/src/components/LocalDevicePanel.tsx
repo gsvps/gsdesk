@@ -522,7 +522,7 @@ export default function LocalDevicePanel({ compact = false }: { compact?: boolea
           交流群
         </a>
         <a
-          href="https://github.com/gsvps/cloud-desk"
+          href="https://github.com/gsvps/gsdesk"
           target="_blank"
           rel="noopener noreferrer"
           className="block text-slate-400 transition hover:text-sky-300"

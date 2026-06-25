@@ -5,11 +5,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/clouddesk/agent/internal/agent"
-	"github.com/clouddesk/agent/internal/appui"
-	"github.com/clouddesk/agent/internal/config"
-	"github.com/clouddesk/agent/internal/logsetup"
-	"github.com/clouddesk/agent/internal/platform"
+	"github.com/gsvps/gsdesk/internal/agent"
+	"github.com/gsvps/gsdesk/internal/appui"
+	"github.com/gsvps/gsdesk/internal/config"
+	"github.com/gsvps/gsdesk/internal/logsetup"
+	"github.com/gsvps/gsdesk/internal/platform"
 )
 
 func fatalStartup(msg string) {
@@ -18,7 +18,7 @@ func fatalStartup(msg string) {
 }
 
 func main() {
-	settingsFlag := flag.Bool("settings", false, "open CloudDesk client (device tab)")
+	settingsFlag := flag.Bool("settings", false, "open GSDesk client (device tab)")
 	flag.Parse()
 
 	logsetup.Init()
@@ -26,7 +26,7 @@ func main() {
 	appui.EnsureWebViewEnvironment()
 
 	if appui.TryActivateExistingInstance() {
-		log.Print("CloudDesk already running, restored existing window")
+		log.Print("GSDesk already running, restored existing window")
 		return
 	}
 

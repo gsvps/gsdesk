@@ -8,7 +8,7 @@ import (
 )
 
 // DefaultInstallDir is the recommended installation directory on Windows.
-const DefaultInstallDir = `D:\CloudDesk`
+const DefaultInstallDir = `D:\GSDesk`
 
 func resolveDefaultInstallDir() string {
 	if _, err := os.Stat(`D:\`); err == nil {
@@ -16,9 +16,9 @@ func resolveDefaultInstallDir() string {
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return `C:\CloudDesk`
+		return `C:\GSDesk`
 	}
-	return filepath.Join(home, "CloudDesk")
+	return filepath.Join(home, "GSDesk")
 }
 
 type installMeta struct {
@@ -83,7 +83,7 @@ func DataDir() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		dir = filepath.Join(home, ".clouddesk")
+		dir = filepath.Join(home, ".gsdesk")
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err

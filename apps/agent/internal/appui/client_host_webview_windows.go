@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/clouddesk/agent/internal/config"
-	"github.com/clouddesk/agent/internal/install"
-	"github.com/clouddesk/agent/internal/update"
+	"github.com/gsvps/gsdesk/internal/config"
+	"github.com/gsvps/gsdesk/internal/install"
+	"github.com/gsvps/gsdesk/internal/update"
 	"github.com/sqweek/dialog"
 	webview "github.com/webview/webview_go"
 )
@@ -96,7 +96,7 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 
 	w := webview.New(false)
 	defer w.Destroy()
-	w.SetTitle("CloudDesk")
+	w.SetTitle("GSDesk")
 	w.SetSize(960, 720, webview.HintNone)
 	w.Init(`document.documentElement.style.background='#0f172a';document.body.style.background='#0f172a';document.body.style.color='#e2e8f0';`)
 
@@ -278,7 +278,7 @@ func runClientWindow(cfg *config.Config, holder *agentHolder, tab string, block 
 	})
 
 	w.Bind("browseInstallDirGo", func(current string) string {
-		path, err := dialog.Directory().Title("选择 CloudDesk 安装目录").Browse()
+		path, err := dialog.Directory().Title("选择 GSDesk 安装目录").Browse()
 		if err != nil || path == "" {
 			if current != "" {
 				return current
@@ -396,7 +396,7 @@ func runBootstrapClient(cfg *config.Config, factory AgentFactory) error {
 				cmd := exec.Command(installedExe)
 				cmd.Dir = installDir
 				if err := cmd.Start(); err != nil {
-					showError("安装完成，但无法启动 CloudDesk:\n" + err.Error() + "\n\n请手动运行:\n" + installedExe)
+					showError("安装完成，但无法启动 GSDesk:\n" + err.Error() + "\n\n请手动运行:\n" + installedExe)
 					return
 				}
 				exitApplication(nil)

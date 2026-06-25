@@ -1,4 +1,4 @@
-import type { SignalMessage } from '@clouddesk/protocol';
+import type { SignalMessage } from '@gsdesk/protocol';
 import { eq } from 'drizzle-orm';
 import type { WebSocket } from 'ws';
 import type { Env } from '../../../worker/src/env.js';

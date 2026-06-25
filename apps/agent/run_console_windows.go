@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/clouddesk/agent/internal/agent"
-	"github.com/clouddesk/agent/internal/appui"
-	"github.com/clouddesk/agent/internal/tray"
+	"github.com/gsvps/gsdesk/internal/agent"
+	"github.com/gsvps/gsdesk/internal/appui"
+	"github.com/gsvps/gsdesk/internal/tray"
 )
 
 func runPlatform(a *agent.Agent) {
@@ -29,7 +29,7 @@ func runPlatform(a *agent.Agent) {
 		os.Exit(0)
 	}()
 
-	log.Printf("CloudDesk Client running, device=%s", a.DeviceID())
+	log.Printf("GSDesk Client running, device=%s", a.DeviceID())
 	tray.Run(tray.Options{
 		DeviceID: a.DeviceID(),
 		IsOnline: a.IsOnline,

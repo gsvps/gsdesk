@@ -11,7 +11,7 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "paths": {
-      "@clouddesk/protocol": ["../../packages/protocol/src/index.ts"]
+      "@gsdesk/protocol": ["../../packages/protocol/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts", "../../packages/protocol/src/**/*.ts"]

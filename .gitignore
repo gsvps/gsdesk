@@ -9,11 +9,11 @@ dist/
 !.env.example
 .DS_Store
 *.log
-apps/agent/clouddesk-agent
-apps/agent/clouddesk-agent.exe
-apps/agent/clouddesk-client-test.exe
+apps/agent/gsdesk-agent
+apps/agent/gsdesk-agent.exe
+apps/agent/gsdesk-client-test.exe
 apps/agent/*.exe
 apps/agent/*.exe~
 apps/agent/.../
-apps/agent/.clouddesk/
+apps/agent/.gsdesk/
 data/

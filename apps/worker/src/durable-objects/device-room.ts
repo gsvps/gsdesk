@@ -1,4 +1,4 @@
-import type { SignalMessage } from '@clouddesk/protocol';
+import type { SignalMessage } from '@gsdesk/protocol';
 import type { Env } from '../env';
 import { createDb } from '../db';
 import { devices, sessions } from '../db/schema';

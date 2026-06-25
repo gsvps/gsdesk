@@ -17,7 +17,7 @@ var (
 )
 
 func PromptAccept(sessionID string) bool {
-	title, _ := syscall.UTF16PtrFromString("CloudDesk")
+	title, _ := syscall.UTF16PtrFromString("GSDesk")
 	text, _ := syscall.UTF16PtrFromString(
 		fmt.Sprintf("有远程连接请求，是否允许？\n\n会话 ID: %s", sessionID),
 	)

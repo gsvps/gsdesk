@@ -5,9 +5,9 @@ package main
 import (
 	"log"
 
-	"github.com/clouddesk/agent/internal/agent"
-	"github.com/clouddesk/agent/internal/appui"
-	"github.com/clouddesk/agent/internal/tray"
+	"github.com/gsvps/gsdesk/internal/agent"
+	"github.com/gsvps/gsdesk/internal/appui"
+	"github.com/gsvps/gsdesk/internal/tray"
 )
 
 func runPlatform(a *agent.Agent) {
@@ -17,7 +17,7 @@ func runPlatform(a *agent.Agent) {
 		}
 	}()
 
-	log.Printf("CloudDesk Client running, device=%s", a.DeviceID())
+	log.Printf("GSDesk Client running, device=%s", a.DeviceID())
 	cfg := a.Config()
 	if cfg != nil {
 		appui.ShowClientWindow(cfg, a.ApplyConfig, a, "control")

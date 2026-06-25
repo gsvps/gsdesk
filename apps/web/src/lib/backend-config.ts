@@ -6,7 +6,7 @@ export interface BackendConfig {
   apiBase: string;
 }
 
-const STORAGE_KEY = 'clouddesk_backend';
+const STORAGE_KEY = 'gsdesk_backend';
 
 export const BACKEND_MODE_LABEL: Record<BackendMode, string> = {
   local: '本地开发',
@@ -66,7 +66,7 @@ export async function testBackendConnection(apiBase: string): Promise<{ ok: bool
       return { ok: false, message: body.error?.message ?? `HTTP ${res.status}` };
     }
     const kind = body.data?.backend ?? 'unknown';
-    const app = body.data?.app ?? 'CloudDesk';
+    const app = body.data?.app ?? 'GSDesk';
     const dbReady = body.data?.db_ready;
     if (dbReady === false) {
       const detail = body.data?.db_error?.trim();

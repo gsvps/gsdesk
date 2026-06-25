@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/clouddesk/agent/internal/install"
+	"github.com/gsvps/gsdesk/internal/install"
 )
 
 const webView2DownloadURL = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
@@ -19,9 +19,9 @@ func EnsureDesktopRuntime() error {
 		return nil
 	}
 
-	showInfo("CloudDesk 首次运行需要 Microsoft Edge WebView2 运行库。\n\n正在自动下载并安装，可能需要 1–3 分钟，请稍候…")
+	showInfo("GSDesk 首次运行需要 Microsoft Edge WebView2 运行库。\n\n正在自动下载并安装，可能需要 1–3 分钟，请稍候…")
 
-	packagesDir := filepath.Join(os.TempDir(), "clouddesk-bootstrap", "packages")
+	packagesDir := filepath.Join(os.TempDir(), "gsdesk-bootstrap", "packages")
 	if err := os.MkdirAll(packagesDir, 0o755); err != nil {
 		return fmt.Errorf("创建临时目录失败: %w", err)
 	}

@@ -1,5 +1,5 @@
 {
-  "name": "@clouddesk/web",
+  "name": "@gsdesk/web",
   "version": "0.1.7",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@clouddesk/protocol": "*",
+    "@gsdesk/protocol": "*",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.3"

@@ -1,5 +1,5 @@
 {
-  "name": "clouddesk",
+  "name": "gsdesk",
   "version": "0.1.7",
   "private": true,
   "description": "基于 Cloudflare 和 WebRTC 的无服务器远程桌面",
@@ -11,16 +11,16 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev:worker": "npm run dev -w @clouddesk/worker",
-    "dev:web": "npm run dev -w @clouddesk/web",
-    "dev:server": "npm run dev -w @clouddesk/server",
+    "dev:worker": "npm run dev -w @gsdesk/worker",
+    "dev:web": "npm run dev -w @gsdesk/web",
+    "dev:server": "npm run dev -w @gsdesk/server",
     "build": "node scripts/build-web-app.mjs",
-    "build:embed": "npm run build -w @clouddesk/web",
+    "build:embed": "npm run build -w @gsdesk/web",
     "build:web:app": "node scripts/build-web-app.mjs",
-    "build:worker": "npm run build -w @clouddesk/worker",
-    "build:server": "npm run build -w @clouddesk/server",
-    "typecheck": "npm run typecheck -w @clouddesk/worker && npm run typecheck -w @clouddesk/web && npm run typecheck -w @clouddesk/server",
-    "test": "npm run test -w @clouddesk/worker",
+    "build:worker": "npm run build -w @gsdesk/worker",
+    "build:server": "npm run build -w @gsdesk/server",
+    "typecheck": "npm run typecheck -w @gsdesk/worker && npm run typecheck -w @gsdesk/web && npm run typecheck -w @gsdesk/server",
+    "test": "npm run test -w @gsdesk/worker",
     "db:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.toml",
     "db:migrate": "wrangler d1 migrations apply DB --remote --config wrangler.toml",
     "deploy": "npm run build:web:app && npm run db:migrate && wrangler deploy --config wrangler.toml",
@@ -30,13 +30,13 @@
     "products": ["Workers", "D1", "R2", "KV", "Durable Objects"],
     "bindings": {
       "DB": {
-        "description": "D1 数据库，存储用户、设备、会话与审计日志。默认名称：`clouddesk`"
+        "description": "D1 数据库，存储用户、设备、会话与审计日志。默认名称：`gsdesk`"
       },
       "KV": {
-        "description": "KV 命名空间，存储登录会话、OTP、设备 Token、限流计数。默认名称：`clouddesk`"
+        "description": "KV 命名空间，存储登录会话、OTP、设备 Token、限流计数。默认名称：`gsdesk`"
       },
       "R2": {
-        "description": "R2 存储桶，预留文件传输。默认名称：`clouddesk-files`"
+        "description": "R2 存储桶，预留文件传输。默认名称：`gsdesk-files`"
       },
       "DEVICE_ROOM": {
         "description": "Durable Object：Agent WebSocket 与设备在线状态"
@@ -48,7 +48,7 @@
         "description": "手机/浏览器控制端安全入口路径，默认 `/app`。修改后须重新 build:web:app 并 deploy。"
       },
       "APP_NAME": {
-        "description": "应用显示名称（可选）。**留空**则界面默认显示 `CloudDesk`"
+        "description": "应用显示名称（可选）。**留空**则界面默认显示 `GSDesk`"
       }
     }
   }

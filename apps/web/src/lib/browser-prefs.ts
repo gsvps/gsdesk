@@ -14,8 +14,8 @@ import { loadControllerTokenFromBridge } from './controller-token-bridge';
 import { resolveRuntimeApiBase, setRuntimeApiBase } from './runtime-config';
 
 export const BROWSER_STORAGE_KEYS = {
-  backend: 'clouddesk_backend',
-  token: 'clouddesk_token',
+  backend: 'gsdesk_backend',
+  token: 'gsdesk_token',
 } as const;
 
 export function getBrowserStorageOrigin(): string {
@@ -47,7 +47,7 @@ export function savePreferredToken(token: string | null) {
   setStoredToken(token?.trim() || null);
 }
 
-export const CONFIG_UPDATED_EVENT = 'clouddesk:config-updated';
+export const CONFIG_UPDATED_EVENT = 'gsdesk:config-updated';
 
 export function notifyConfigUpdated() {
   window.dispatchEvent(new Event(CONFIG_UPDATED_EVENT));
@@ -58,7 +58,7 @@ export function clearBrowserLocalCache(): void {
   const keys: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && (key.startsWith('clouddesk') || key.startsWith('clouddesk_'))) {
+    if (key && (key.startsWith('gsdesk') || key.startsWith('gsdesk_'))) {
       keys.push(key);
     }
   }

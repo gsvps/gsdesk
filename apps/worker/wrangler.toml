@@ -1,4 +1,4 @@
-name = "cloud-desk"
+name = "gsdesk"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
 compatibility_flags = ["nodejs_compat"]
@@ -30,5 +30,5 @@ new_sqlite_classes = ["DeviceRoom", "SessionRoom"]
 [vars]
 SKIP_SIGNATURE_VERIFY = "true"
 CLIENT_LATEST_VERSION = "0.1.7"
-CLIENT_DOWNLOAD_URL = "https://github.com/gsvps/cloud-desk/releases/latest"
-CONTROLLER_JWT_SECRET = "clouddesk-dev-controller-secret-change-me"
+CLIENT_DOWNLOAD_URL = "https://github.com/gsvps/gsdesk/releases/latest"
+CONTROLLER_JWT_SECRET = "gsdesk-dev-controller-secret-change-me"

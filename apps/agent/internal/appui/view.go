@@ -1,6 +1,6 @@
 package appui
 
-import "github.com/clouddesk/agent/internal/config"
+import "github.com/gsvps/gsdesk/internal/config"
 
 type AgentView interface {
 	DeviceID() string

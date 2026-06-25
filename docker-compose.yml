@@ -1,5 +1,5 @@
 services:
-  clouddesk:
+  gsdesk:
     build:
       context: .
       dockerfile: apps/server/Dockerfile
@@ -7,12 +7,12 @@ services:
       - "8787:8787"
     environment:
       PORT: "8787"
-      CLOUDDESK_DATA: /data
-      CONTROLLER_JWT_SECRET: ${CONTROLLER_JWT_SECRET:-clouddesk-dev-controller-secret-change-me}
+      GSDESK_DATA: /data
+      CONTROLLER_JWT_SECRET: ${CONTROLLER_JWT_SECRET:-gsdesk-dev-controller-secret-change-me}
       SKIP_SIGNATURE_VERIFY: ${SKIP_SIGNATURE_VERIFY:-false}
     volumes:
-      - clouddesk-data:/data
+      - gsdesk-data:/data
     restart: unless-stopped
 
 volumes:
-  clouddesk-data:
+  gsdesk-data:

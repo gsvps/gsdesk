@@ -46,11 +46,11 @@ export function createCoreApp() {
     const bootstrapError = getLastBootstrapError();
     const secret = c.env.CONTROLLER_JWT_SECRET?.trim() ?? '';
     const weakSecret =
-      !secret || secret === 'clouddesk-dev-controller-secret-change-me' || secret.length < 24;
+      !secret || secret === 'gsdesk-dev-controller-secret-change-me' || secret.length < 24;
     return jsonOk(c, {
       status: 'ok',
       backend: c.env.BACKEND_KIND ?? 'cloudflare',
-      app: c.env.APP_NAME || 'CloudDesk',
+      app: c.env.APP_NAME || 'GSDesk',
       version: latestClientVersion(c.env),
       db_ready: dbReady,
       db_error: dbReady ? undefined : bootstrapError,

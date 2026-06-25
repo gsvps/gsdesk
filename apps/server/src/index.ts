@@ -14,10 +14,10 @@ import { tryServeWebApp, normalizeWebAppPath, webAppEntryPath } from './web-app-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.PORT ?? 8787);
-const DATA_DIR = process.env.CLOUDDESK_DATA ?? path.resolve(__dirname, '../../../data');
+const DATA_DIR = process.env.GSDESK_DATA ?? path.resolve(__dirname, '../../../data');
 
 function createRuntime() {
-  const sqlite = openDatabase(path.join(DATA_DIR, 'clouddesk.db'));
+  const sqlite = openDatabase(path.join(DATA_DIR, 'gsdesk.db'));
   applyMigrations(sqlite);
 
   const registry = new RoomRegistry();
@@ -28,11 +28,11 @@ function createRuntime() {
     KV: kv,
     R2: new LocalR2Bucket(path.join(DATA_DIR, 'files')),
     BACKEND_KIND: 'self_hosted',
-    APP_NAME: process.env.APP_NAME ?? 'CloudDesk',
+    APP_NAME: process.env.APP_NAME ?? 'GSDesk',
     ALLOWED_ORIGIN: process.env.ALLOWED_ORIGIN,
     SKIP_SIGNATURE_VERIFY: process.env.SKIP_SIGNATURE_VERIFY ?? 'true',
     CONTROLLER_JWT_SECRET:
-      process.env.CONTROLLER_JWT_SECRET ?? 'clouddesk-dev-controller-secret-change-me',
+      process.env.CONTROLLER_JWT_SECRET ?? 'gsdesk-dev-controller-secret-change-me',
     CLIENT_LATEST_VERSION: process.env.CLIENT_LATEST_VERSION ?? '0.1.0',
     CLIENT_DOWNLOAD_URL: process.env.CLIENT_DOWNLOAD_URL,
     CLIENT_RELEASE_NOTES: process.env.CLIENT_RELEASE_NOTES,
@@ -91,7 +91,7 @@ const server = createServer((req, res) => {
 attachWebSocketServer(server, env, registry);
 
 server.listen(PORT, () => {
-  console.log(`CloudDesk self-hosted server listening on http://0.0.0.0:${PORT}`);
+  console.log(`GSDesk self-hosted server listening on http://0.0.0.0:${PORT}`);
   console.log(`Data directory: ${DATA_DIR}`);
   console.log(`Mobile/web control entry: http://0.0.0.0:${PORT}${webAppEntryPath(env.WEB_APP_PATH)}`);
 });

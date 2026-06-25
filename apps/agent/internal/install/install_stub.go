@@ -2,7 +2,7 @@
 
 package install
 
-import "github.com/clouddesk/agent/internal/config"
+import "github.com/gsvps/gsdesk/internal/config"
 
 type State struct {
 	Installed   bool   `json:"installed"`

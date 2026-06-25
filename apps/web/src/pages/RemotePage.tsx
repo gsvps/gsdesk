@@ -107,11 +107,11 @@ export default function RemotePage() {
   const [error, setError] = useState('');
   const [useVideoTrack, setUseVideoTrack] = useState(false);
   const [fitMode, setFitMode] = useState<FitMode>(() => {
-    const saved = sessionStorage.getItem('clouddesk:fit-mode');
+    const saved = sessionStorage.getItem('gsdesk:fit-mode');
     return saved === 'cover' ? 'cover' : 'contain';
   });
   const [quality, setQuality] = useState<QualityPreset>(() => {
-    const saved = sessionStorage.getItem('clouddesk:quality');
+    const saved = sessionStorage.getItem('gsdesk:quality');
     return saved === 'low' || saved === 'medium' || saved === 'high' || saved === 'ultra' || saved === '4k' ? saved : 'high';
   });
   const [keyboardEnabled, setKeyboardEnabled] = useState(false);
@@ -184,7 +184,7 @@ export default function RemotePage() {
 
   useEffect(() => {
     fitModeRef.current = fitMode;
-    sessionStorage.setItem('clouddesk:fit-mode', fitMode);
+    sessionStorage.setItem('gsdesk:fit-mode', fitMode);
   }, [fitMode]);
 
   useEffect(() => {
@@ -192,7 +192,7 @@ export default function RemotePage() {
   }, [keyboardEnabled]);
 
   useEffect(() => {
-    sessionStorage.setItem('clouddesk:quality', quality);
+    sessionStorage.setItem('gsdesk:quality', quality);
     sessionRef.current?.sendControl({ type: 'set_quality', preset: quality });
   }, [quality]);
 
