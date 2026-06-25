@@ -96,7 +96,7 @@ npx wrangler login
 npm run deploy:cloudflare   # 构建 Web 入口 + 数据库迁移 + 部署 Worker
 ```
 
-详见 [https://www.gsvps.com/articles/news-20](https://www.gsvps.com/articles/news-20)。
+详见 [Cloudflare Worker部署](https://www.gsvps.com/articles/news-20)。
 
 ### VPS 自托管
 
@@ -105,7 +105,7 @@ docker compose up -d --build
 # 或本地开发：npm run dev:server
 ```
 
-详见 [https://www.gsvps.com/articles/news-21](https://www.gsvps.com/articles/news-21)。
+详见 [VPS 自托管](https://www.gsvps.com/articles/news-21)。
 
 ---
 
